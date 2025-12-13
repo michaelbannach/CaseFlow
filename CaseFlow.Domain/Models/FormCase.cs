@@ -6,6 +6,7 @@ public class FormCase
 {
     public int Id { get; set; }
 
+    public FormType FormType { get; set; } = default!;
     public ProcessingStatus Status { get; set; } = ProcessingStatus.Neu;
     
     public int DepartmentId { get; set; }
@@ -33,7 +34,7 @@ public class FormCase
     
     //Leistungsantrag
     public string? ServiceDescription { get; set; }
-    public string? Justificatiion { get; set; }
+    public string? Justification { get; set; }
     
     //Kostenantrag
     public decimal? Amount { get; set; }
