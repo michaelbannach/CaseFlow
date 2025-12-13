@@ -23,6 +23,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+        builder.ApplyConfiguration(new DepartmentConfiguration());
         builder.ApplyConfiguration(new EmployeeConfiguration());
+        builder.ApplyConfiguration(new FormCaseConfiguration());
+        builder.ApplyConfiguration(new PdfAttachmentConfiguration());
     }
 }
