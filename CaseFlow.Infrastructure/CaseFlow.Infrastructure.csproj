@@ -82,7 +82,6 @@
 
     <ItemGroup>
       <Folder Include="Configuration\" />
-      <Folder Include="Data\" />
       <Folder Include="Repositories\" />
     </ItemGroup>
 
