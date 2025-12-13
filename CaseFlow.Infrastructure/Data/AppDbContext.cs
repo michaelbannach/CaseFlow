@@ -18,7 +18,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Department> Departments => Set<Department>();
     public DbSet<FormCase> FormCases => Set<FormCase>();
     public DbSet<ClarificationMessage> ClarificationMessages => Set<ClarificationMessage>();
-    public DbSet<PdfAttachment> Attachments => Set<PdfAttachment>();
+    public DbSet<PdfAttachment> PdfAttachments => Set<PdfAttachment>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

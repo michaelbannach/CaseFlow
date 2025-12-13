@@ -1,0 +1,9 @@
+C:\Users\micha\RiderProjects\CaseFlow\CaseFlow.Web\obj\Debug\net9.0\CaseFlow.Web.csproj.AssemblyReference.cache
+C:\Users\micha\RiderProjects\CaseFlow\CaseFlow.Web\obj\Debug\net9.0\rpswa.dswa.cache.json
+C:\Users\micha\RiderProjects\CaseFlow\CaseFlow.Web\obj\Debug\net9.0\CaseFlow.Web.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\micha\RiderProjects\CaseFlow\CaseFlow.Web\obj\Debug\net9.0\CaseFlow.Web.AssemblyInfoInputs.cache
+C:\Users\micha\RiderProjects\CaseFlow\CaseFlow.Web\obj\Debug\net9.0\CaseFlow.Web.AssemblyInfo.cs
+C:\Users\micha\RiderProjects\CaseFlow\CaseFlow.Web\obj\Debug\net9.0\CaseFlow.Web.csproj.CoreCompileInputs.cache
+C:\Users\micha\RiderProjects\CaseFlow\CaseFlow.Web\obj\Debug\net9.0\CaseFlow.Web.MvcApplicationPartsAssemblyInfo.cs
+C:\Users\micha\RiderProjects\CaseFlow\CaseFlow.Web\obj\Debug\net9.0\CaseFlow.Web.MvcApplicationPartsAssemblyInfo.cache
+C:\Users\micha\RiderProjects\CaseFlow\CaseFlow.Web\obj\Debug\net9.0\CaseFlow.Web.sourcelink.json
