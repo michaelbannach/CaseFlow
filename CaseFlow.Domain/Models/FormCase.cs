@@ -6,7 +6,7 @@ public class FormCase
 {
     public int Id { get; set; }
 
-    public FormType FormType { get; set; } = default!;
+    public FormType FormType { get; set; } 
     public ProcessingStatus Status { get; set; } = ProcessingStatus.Neu;
     
     public int DepartmentId { get; set; }

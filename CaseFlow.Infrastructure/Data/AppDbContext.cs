@@ -27,5 +27,6 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         builder.ApplyConfiguration(new EmployeeConfiguration());
         builder.ApplyConfiguration(new FormCaseConfiguration());
         builder.ApplyConfiguration(new PdfAttachmentConfiguration());
+        builder.ApplyConfiguration(new ClarificationMessageConfiguration());
     }
 }

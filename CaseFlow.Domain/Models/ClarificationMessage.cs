@@ -11,5 +11,5 @@ public class ClarificationMessage
     public Employee CreatedByEmployee { get; set; } = default!;
     
     public string Message { get; set; } = default!;
-    public DateTimeOffset CreatedOAt { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 }
