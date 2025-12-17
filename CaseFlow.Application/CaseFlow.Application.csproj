@@ -81,10 +81,6 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="Services\" />
-    </ItemGroup>
-
-    <ItemGroup>
       <ProjectReference Include="..\CaseFlow.Domain\CaseFlow.Domain.csproj" />
     </ItemGroup>
 
