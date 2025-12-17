@@ -81,12 +81,6 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="Controllers\" />
-      <Folder Include="Dtos\" />
-      <Folder Include="Mappings\" />
-    </ItemGroup>
-
-    <ItemGroup>
       <ProjectReference Include="..\CaseFlow.Application\CaseFlow.Application.csproj" />
       <ProjectReference Include="..\CaseFlow.Domain\CaseFlow.Domain.csproj" />
       <ProjectReference Include="..\CaseFlow.Infrastructure\CaseFlow.Infrastructure.csproj" />
