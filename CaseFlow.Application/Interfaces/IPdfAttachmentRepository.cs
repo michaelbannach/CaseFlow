@@ -11,4 +11,7 @@ public interface IPdfAttachmentRepository
     Task<bool> AddAsync(PdfAttachment attachment);
 
     Task<bool> DeleteAsync(PdfAttachment attachment);
+    
+    Task<bool> UpdateStorageKeyAsync(int attachmentId, string storageKey);
+
 }

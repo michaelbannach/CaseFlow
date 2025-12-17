@@ -40,4 +40,14 @@ public class PdfAttachmentRepository : IPdfAttachmentRepository
         _db.PdfAttachments.Remove(attachment);
         return await _db.SaveChangesAsync() > 0;
     }
+    
+    public async Task<bool> UpdateStorageKeyAsync(int attachmentId, string storageKey)
+    {
+        var existing = await _db.PdfAttachments.FirstOrDefaultAsync(a => a.Id == attachmentId);
+        if (existing is null) return false;
+
+        existing.StorageKey = storageKey;
+        return await _db.SaveChangesAsync() > 0;
+    }
+
 }
