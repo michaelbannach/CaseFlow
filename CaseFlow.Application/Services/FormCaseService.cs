@@ -42,7 +42,7 @@ public class FormCaseService : IFormCaseService
             return (false, "FormCase is null");
         }
 
-        // Required FKs (based on your entity)
+        // Required FKs 
         if (formCase.DepartmentId <= 0)
         {
             _logger.LogWarning("AddFormCaseAsync: DepartmentId is missing");
@@ -55,7 +55,7 @@ public class FormCaseService : IFormCaseService
             return (false, "Creator (employee) is required");
         }
 
-        // Basic applicant validation (you can tighten/loosen later)
+        // Basic applicant validation 
         if (string.IsNullOrWhiteSpace(formCase.ApplicantName))
         {
             _logger.LogWarning("AddFormCaseAsync: ApplicantName is required");
@@ -86,9 +86,8 @@ public class FormCaseService : IFormCaseService
 
         formCase.UpdatedAt = DateTimeOffset.UtcNow;
 
-        // Status already defaults to Neu in your entity – ensure it's not an undefined value
-        // If you ever add "0" enum value, you can handle it here.
-
+        // Status already defaults to Neu in entity
+        
         var ok = await _formCaseRepository.AddAsync(formCase);
         if (!ok)
         {
