@@ -8,4 +8,6 @@ public interface IAttachmentStorage
         Stream fileStream);
 
     Task<(bool deleted, string? error)> DeleteAsync(string storageKey);
+    
+    Task<(Stream? stream, string? error)> OpenReadAsync(string storageKey);
 }

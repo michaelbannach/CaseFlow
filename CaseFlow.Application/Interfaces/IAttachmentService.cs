@@ -14,4 +14,7 @@ public interface IAttachmentService
         Stream fileStream);
 
     Task<(bool deleted, string? error)> DeleteAttachmentAsync(PdfAttachment attachment);
+    
+    Task<(Stream? stream, string? fileName, string? contentType, string? error)> DownloadAsync(int attachmentId);
+
 }

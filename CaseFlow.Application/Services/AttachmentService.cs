@@ -177,4 +177,36 @@ public class AttachmentService : IAttachmentService
 
         return (true, null);
     }
+    public async Task<(Stream? stream, string? fileName, string? contentType, string? error)>
+        DownloadAsync(int attachmentId)
+    {
+        if (attachmentId <= 0)
+        {
+            _logger.LogWarning("DownloadAsync: Invalid attachmentId {Id}", attachmentId);
+            return (null, null, null, "Invalid attachmentId");
+        }
+
+        var attachment = await _attachmentRepository.GetByIdAsync(attachmentId);
+        if (attachment is null)
+        {
+            _logger.LogWarning("DownloadAsync: AttachmentId {Id} not found", attachmentId);
+            return (null, null, null, "Attachment not found");
+        }
+
+        if (string.IsNullOrWhiteSpace(attachment.StorageKey))
+        {
+            _logger.LogWarning("DownloadAsync: AttachmentId {Id} has no StorageKey", attachmentId);
+            return (null, null, null, "Attachment has no file reference");
+        }
+
+        var (stream, error) = await _storage.OpenReadAsync(attachment.StorageKey);
+        if (stream is null)
+        {
+            _logger.LogError("DownloadAsync: File not found for attachmentId {Id}", attachmentId);
+            return (null, null, null, error ?? "File not found");
+        }
+
+        return (stream, attachment.FileName, attachment.ContentType, null);
+    }
+
 }

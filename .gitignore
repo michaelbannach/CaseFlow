@@ -24,3 +24,5 @@ Thumbs.db
 
 # Configuration files
 appsettings.Development.json
+
+Storage/
