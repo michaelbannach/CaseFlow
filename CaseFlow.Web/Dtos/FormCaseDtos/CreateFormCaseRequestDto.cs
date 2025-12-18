@@ -6,6 +6,8 @@ public class CreateFormCaseRequestDto
 {
     public FormType FormType { get; set; }
 
+    public int ActingEmployeeId { get; set; }
+
     public int DepartmentId { get; set; }
     public int CreatedByEmployeeId { get; set; }
 

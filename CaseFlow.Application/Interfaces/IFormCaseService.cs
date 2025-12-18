@@ -8,11 +8,17 @@ public interface IFormCaseService
     Task<List<FormCase>> GetAllFormCasesAsync();
     
     Task<FormCase?> GetFormCaseByIdAsync(int formCaseId);
-      
-    Task<(bool added, string? error)> CreateFormCaseAsync(FormCase formCase);
-    
-    Task<(bool updated, string? error )> UpdateFormCaseStatusAsync(int formCaseId, ProcessingStatus newStatus);
-    
-    Task<(bool deleted, string? error)> DeleteFormCaseAsync(FormCase formCase);
-   
+
+    Task<(bool added, string? error)> CreateFormCaseAsync(
+        int actingEmployeeId,
+        FormCase formCase);
+
+    Task<(bool updated, string? error)> UpdateFormCaseStatusAsync(
+        int actingEmployeeId,
+        int formCaseId,
+        ProcessingStatus newStatus);
+
+    Task<(bool deleted, string? error)> DeleteFormCaseAsync(
+        int actingEmployeeId,
+        int formCaseId);
 }

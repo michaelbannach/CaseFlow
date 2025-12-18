@@ -32,33 +32,33 @@ public class AttachmentsController : ControllerBase
     [ProducesResponseType(typeof(object), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Upload(
         int formCaseId,
-        [FromForm] UploadAttachmentRequestDto dto,
-        [FromForm] IFormFile file)
+        [FromForm] UploadAttachmentRequestDto dto)
     {
-        if (file is null || file.Length <= 0)
+        if (dto.File is null || dto.File.Length <= 0)
             return BadRequest(new { error = "File is missing" });
-        
+
         var attachment = new PdfAttachment
         {
-            FileName = file.FileName,
-            ContentType = file.ContentType,
-            SizeBytes = file.Length,
+            FileName = dto.File.FileName,
+            ContentType = dto.File.ContentType,
+            SizeBytes = dto.File.Length,
             UploadedByEmployeeId = dto.UploadedByEmployeeId
         };
 
-        await using var stream = file.OpenReadStream();
-        var (added, error) = await _attachmentService.AddAttachmentAsync(formCaseId, attachment, stream);
+        await using var stream = dto.File.OpenReadStream();
+
+        var (added, error) =
+            await _attachmentService.AddAttachmentAsync(formCaseId, attachment, stream);
 
         if (!added)
             return BadRequest(new { error });
-        
-        var response = attachment.ToDto();
 
         return CreatedAtAction(
             nameof(Download),
             new { id = attachment.Id },
-            response);
+            attachment.ToDto());
     }
+
     
     [HttpGet("attachments/{id:int}/download")]
     [ProducesResponseType(StatusCodes.Status200OK)]

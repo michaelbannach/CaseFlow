@@ -1,20 +1,23 @@
-
-
 using CaseFlow.Application.Interfaces;
 using CaseFlow.Domain.Enums;
 using CaseFlow.Domain.Models;
-
+using Microsoft.Extensions.Logging;
 
 namespace CaseFlow.Application.Services;
 
 public class FormCaseService : IFormCaseService
 {
     private readonly IFormCaseRepository _formCaseRepository;
+    private readonly IEmployeeRepository _employeeRepository;
     private readonly ILogger<FormCaseService> _logger;
 
-    public FormCaseService(IFormCaseRepository formCaseRepository, ILogger<FormCaseService> logger)
+    public FormCaseService(
+        IFormCaseRepository formCaseRepository,
+        IEmployeeRepository employeeRepository,
+        ILogger<FormCaseService> logger)
     {
         _formCaseRepository = formCaseRepository;
+        _employeeRepository = employeeRepository;
         _logger = logger;
     }
 
@@ -27,134 +30,177 @@ public class FormCaseService : IFormCaseService
     {
         if (formCaseId <= 0)
         {
-            _logger.LogWarning("GetFormCaseByIdAsync: FormCaseId must be greater than zero");
-            throw new ArgumentException("FormCaseId must be greater than zero", nameof(formCaseId));
+            _logger.LogWarning("GetFormCaseByIdAsync: formCaseId must be greater than zero");
+            throw new ArgumentException("formCaseId must be greater than zero", nameof(formCaseId));
         }
 
         return await _formCaseRepository.GetByIdAsync(formCaseId);
     }
 
-    public async Task<(bool added, string? error)> CreateFormCaseAsync(FormCase formCase)
+    public async Task<(bool added, string? error)> CreateFormCaseAsync(int actingEmployeeId, FormCase formCase)
     {
+        if (actingEmployeeId <= 0)
+            return (false, "Unknown employee");
+
+        var actor = await _employeeRepository.GetByIdAsync(actingEmployeeId);
+        if (actor is null)
+            return (false, "Unknown employee");
+
+       
+        if (actor.Role == UserRole.Stammdaten)
+            return (false, "Not allowed");
+
+        
+        if (actor.Role != UserRole.Erfasser)
+            return (false, "Not allowed");
+
         if (formCase is null)
-        {
-            _logger.LogWarning("AddFormCaseAsync: FormCase is null");
             return (false, "FormCase is null");
-        }
 
-        // Required FKs 
+      
         if (formCase.DepartmentId <= 0)
-        {
-            _logger.LogWarning("AddFormCaseAsync: DepartmentId is missing");
             return (false, "Department is required");
-        }
 
-        if (formCase.CreateByEmployeeId <= 0)
-        {
-            _logger.LogWarning("AddFormCaseAsync: CreateByEmployeeId is missing");
-            return (false, "Creator (employee) is required");
-        }
-
-        // Basic applicant validation 
         if (string.IsNullOrWhiteSpace(formCase.ApplicantName))
-        {
-            _logger.LogWarning("AddFormCaseAsync: ApplicantName is required");
             return (false, "ApplicantName is required");
-        }
 
         if (string.IsNullOrWhiteSpace(formCase.ApplicantStreet))
-        {
-            _logger.LogWarning("AddFormCaseAsync: ApplicantStreet is required");
             return (false, "ApplicantStreet is required");
-        }
 
         if (formCase.ApplicantZip <= 0)
-        {
-            _logger.LogWarning("AddFormCaseAsync: ApplicantZip is invalid");
             return (false, "ApplicantZip is invalid");
-        }
 
         if (string.IsNullOrWhiteSpace(formCase.ApplicantCity))
-        {
-            _logger.LogWarning("AddFormCaseAsync: ApplicantCity is required");
             return (false, "ApplicantCity is required");
-        }
 
-        // Defaults
+     
+        formCase.CreateByEmployeeId = actor.Id;
+        formCase.Status = ProcessingStatus.Neu;
+
         if (formCase.CreatedAt == default)
             formCase.CreatedAt = DateTimeOffset.UtcNow;
 
         formCase.UpdatedAt = DateTimeOffset.UtcNow;
 
-        // Status already defaults to Neu in entity
-        
         var ok = await _formCaseRepository.AddAsync(formCase);
         if (!ok)
         {
-            _logger.LogError("AddFormCaseAsync: Error while saving FormCase");
+            _logger.LogError("CreateFormCaseAsync: Error while saving FormCase");
             return (false, "Error while saving");
         }
 
         return (true, null);
     }
 
-    public async Task<(bool updated, string? error)> UpdateFormCaseStatusAsync(int formCaseId, ProcessingStatus newStatus)
+    public async Task<(bool updated, string? error)> UpdateFormCaseStatusAsync(
+        int actingEmployeeId,
+        int formCaseId,
+        ProcessingStatus newStatus)
     {
+        if (actingEmployeeId <= 0)
+            return (false, "Unknown employee");
+
         if (formCaseId <= 0)
-        {
-            _logger.LogWarning("UpdateFormCaseStatusAsync: Invalid FormCaseId: {Id}", formCaseId);
             return (false, "Invalid FormCaseId");
-        }
 
-        var existing = await _formCaseRepository.GetByIdAsync(formCaseId);
-        if (existing is null)
-        {
-            _logger.LogWarning("UpdateFormCaseStatusAsync: FormCaseId {Id} not found", formCaseId);
-            return (false, $"FormCaseId {formCaseId} not found");
-        }
+        var actor = await _employeeRepository.GetByIdAsync(actingEmployeeId);
+        if (actor is null)
+            return (false, "Unknown employee");
+        
+        if (actor.Role == UserRole.Stammdaten)
+            return (false, "Not allowed");
 
-        if (existing.Status == newStatus)
-        {
-            _logger.LogInformation("UpdateFormCaseStatusAsync: Status unchanged for FormCaseId {Id}", formCaseId);
+        var formCase = await _formCaseRepository.GetByIdAsync(formCaseId);
+        if (formCase is null)
+            return (false, "FormCase not found");
+
+        if (formCase.Status == newStatus)
             return (true, null);
+
+        var isOwner = formCase.CreateByEmployeeId == actor.Id;
+
+        if (!IsTransitionAllowed(formCase.Status, newStatus, actor.Role, isOwner))
+        {
+            _logger.LogWarning(
+                "UpdateFormCaseStatusAsync: Transition not allowed. Actor={ActorId}, Role={Role}, Case={CaseId}, From={From}, To={To}, Owner={Owner}",
+                actor.Id, actor.Role, formCase.Id, formCase.Status, newStatus, isOwner);
+
+            return (false, "Not allowed");
         }
 
-        existing.Status = newStatus;
-        existing.UpdatedAt = DateTimeOffset.UtcNow;
+        formCase.Status = newStatus;
+        formCase.UpdatedAt = DateTimeOffset.UtcNow;
 
-        var ok = await _formCaseRepository.UpdateAsync(existing);
+        var ok = await _formCaseRepository.UpdateAsync(formCase);
         if (!ok)
         {
-            _logger.LogError("UpdateFormCaseStatusAsync: Failed to update FormCaseId {Id}", formCaseId);
+            _logger.LogError("UpdateFormCaseStatusAsync: Failed to update FormCaseId {Id}", formCase.Id);
             return (false, "Error while updating status");
         }
 
         return (true, null);
     }
 
-    public async Task<(bool deleted, string? error)> DeleteFormCaseAsync(FormCase formCase)
+    public async Task<(bool deleted, string? error)> DeleteFormCaseAsync(int actingEmployeeId, int formCaseId)
     {
-        if (formCase is null)
-        {
-            _logger.LogWarning("DeleteFormCaseAsync: FormCase is null");
-            return (false, "FormCase must not be null");
-        }
+        if (actingEmployeeId <= 0)
+            return (false, "Unknown employee");
 
-        if (formCase.Id <= 0)
-        {
-            _logger.LogWarning("DeleteFormCaseAsync: Invalid FormCaseId");
+        if (formCaseId <= 0)
             return (false, "Invalid FormCaseId");
-        }
 
-        _logger.LogInformation("Delete FormCase {FormCaseId}", formCase.Id);
+        var actor = await _employeeRepository.GetByIdAsync(actingEmployeeId);
+        if (actor is null)
+            return (false, "Unknown employee");
 
-        var deleted = await _formCaseRepository.DeleteByIdAsync(formCase.Id);
+      
+        if (actor.Role == UserRole.Stammdaten)
+            return (false, "Not allowed");
+        
+        if (actor.Role != UserRole.Sachbearbeiter)
+            return (false, "Not allowed");
+
+        var existing = await _formCaseRepository.GetByIdAsync(formCaseId);
+        if (existing is null)
+            return (false, "FormCase not found");
+        
+        var deleted = await _formCaseRepository.DeleteByIdAsync(formCaseId);
         if (!deleted)
         {
-            _logger.LogError("DeleteFormCaseAsync: Error deleting FormCaseId {FormCaseId}", formCase.Id);
+            _logger.LogError("DeleteFormCaseAsync: Error deleting FormCaseId {Id}", formCaseId);
             return (false, "Error deleting FormCase");
         }
 
         return (true, null);
+    }
+
+    private static bool IsTransitionAllowed(
+        ProcessingStatus current,
+        ProcessingStatus next,
+        UserRole role,
+        bool isOwner)
+    {
+        if (role == UserRole.Stammdaten)
+            return false;
+
+       
+        if (role == UserRole.Erfasser)
+        {
+            if (!isOwner) return false;
+
+            return current == ProcessingStatus.InKlaerung
+                   && next == ProcessingStatus.Neu;
+        }
+        
+        if (role == UserRole.Sachbearbeiter)
+        {
+            if (current == ProcessingStatus.InKlaerung) return false;
+
+            return (current == ProcessingStatus.Neu && next == ProcessingStatus.InBearbeitung)
+                   || (current == ProcessingStatus.InBearbeitung && next == ProcessingStatus.InKlaerung)
+                   || (current == ProcessingStatus.InBearbeitung && next == ProcessingStatus.Erledigt);
+        }
+
+        return false;
     }
 }

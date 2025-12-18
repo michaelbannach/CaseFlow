@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("CaseFlow.Web")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+597d6023ca611022b030ef0f92d9082c36b17e88")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+fca371ecbc3d6653701b5aaa65b4e795e00bdaae")]
 [assembly: System.Reflection.AssemblyProductAttribute("CaseFlow.Web")]
 [assembly: System.Reflection.AssemblyTitleAttribute("CaseFlow.Web")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

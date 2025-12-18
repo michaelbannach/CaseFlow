@@ -31,6 +31,8 @@ builder.Services.AddScoped<IAttachmentService, AttachmentService>();
 builder.Services.AddScoped<IPdfAttachmentRepository, PdfAttachmentRepository>();
 builder.Services.AddScoped<IAttachmentStorage, LocalAttachmentStorage>();
 
+builder.Services.AddScoped<IEmployeeRepository, EmployeeRepository>();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
