@@ -6,6 +6,7 @@ using CaseFlow.Infrastructure.Data;
 using CaseFlow.Infrastructure.Repositories;
 using Microsoft.AspNetCore.Identity;
 using CaseFlow.Infrastructure.Models;
+using CaseFlow.Infrastructure.Storage;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,6 +26,10 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddScoped<IFormCaseRepository, FormCaseRepository>();
 builder.Services.AddScoped<IFormCaseService, FormCaseService>();
+
+builder.Services.AddScoped<IAttachmentService, AttachmentService>();
+builder.Services.AddScoped<IPdfAttachmentRepository, PdfAttachmentRepository>();
+builder.Services.AddScoped<IAttachmentStorage, LocalAttachmentStorage>();
 
 var app = builder.Build();
 
