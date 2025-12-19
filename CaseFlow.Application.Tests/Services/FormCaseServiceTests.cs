@@ -267,4 +267,60 @@ public class FormCaseServiceTests
         Assert.Null(error);
         _formCaseRepo.Verify(r => r.DeleteByIdAsync(10), Times.Once);
     }
+    
+    [Fact]
+public async Task UpdateFormCaseStatusAsync_Sachbearbeiter_Allows_InBearbeitung_To_Erledigt()
+{
+    _employeeRepo.Setup(r => r.GetByIdAsync(2)).ReturnsAsync(Employee(2, UserRole.Sachbearbeiter));
+
+    var fc = new FormCase { Id = 10, CreateByEmployeeId = 1, Status = ProcessingStatus.InBearbeitung };
+    _formCaseRepo.Setup(r => r.GetByIdAsync(10)).ReturnsAsync(fc);
+    _formCaseRepo.Setup(r => r.UpdateAsync(It.IsAny<FormCase>())).ReturnsAsync(true);
+
+    var sut = CreateSut();
+
+    var (updated, error) = await sut.UpdateFormCaseStatusAsync(2, 10, ProcessingStatus.Erledigt);
+
+    Assert.True(updated);
+    Assert.Null(error);
+    Assert.Equal(ProcessingStatus.Erledigt, fc.Status);
+    _formCaseRepo.Verify(r => r.UpdateAsync(fc), Times.Once);
+}
+
+[Fact]
+public async Task UpdateFormCaseStatusAsync_Sachbearbeiter_Blocks_Neu_To_Erledigt()
+{
+    _employeeRepo.Setup(r => r.GetByIdAsync(2)).ReturnsAsync(Employee(2, UserRole.Sachbearbeiter));
+
+    var fc = new FormCase { Id = 10, CreateByEmployeeId = 1, Status = ProcessingStatus.Neu };
+    _formCaseRepo.Setup(r => r.GetByIdAsync(10)).ReturnsAsync(fc);
+
+    var sut = CreateSut();
+
+    var (updated, error) = await sut.UpdateFormCaseStatusAsync(2, 10, ProcessingStatus.Erledigt);
+
+    Assert.False(updated);
+    Assert.Equal("Not allowed", error);
+    Assert.Equal(ProcessingStatus.Neu, fc.Status);
+    _formCaseRepo.Verify(r => r.UpdateAsync(It.IsAny<FormCase>()), Times.Never);
+}
+
+[Fact]
+public async Task UpdateFormCaseStatusAsync_Erfasser_Blocks_Neu_To_InBearbeitung()
+{
+    _employeeRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(Employee(1, UserRole.Erfasser));
+
+    var fc = new FormCase { Id = 10, CreateByEmployeeId = 1, Status = ProcessingStatus.Neu };
+    _formCaseRepo.Setup(r => r.GetByIdAsync(10)).ReturnsAsync(fc);
+
+    var sut = CreateSut();
+
+    var (updated, error) = await sut.UpdateFormCaseStatusAsync(1, 10, ProcessingStatus.InBearbeitung);
+
+    Assert.False(updated);
+    Assert.Equal("Not allowed", error);
+    Assert.Equal(ProcessingStatus.Neu, fc.Status);
+    _formCaseRepo.Verify(r => r.UpdateAsync(It.IsAny<FormCase>()), Times.Never);
+}
+
 }

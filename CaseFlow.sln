@@ -8,6 +8,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CaseFlow.Infrastructure", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CaseFlow.Application", "CaseFlow.Application\CaseFlow.Application.csproj", "{90303065-14E1-44FB-BDF8-32C1AC9F8019}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CaseFlow.Application.Tests", "CaseFlow.Application.Tests\CaseFlow.Application.Tests.csproj", "{DCF8711B-4271-48A3-B7DE-DCB265DC50F3}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -30,5 +32,9 @@ Global
 		{90303065-14E1-44FB-BDF8-32C1AC9F8019}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{90303065-14E1-44FB-BDF8-32C1AC9F8019}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{90303065-14E1-44FB-BDF8-32C1AC9F8019}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DCF8711B-4271-48A3-B7DE-DCB265DC50F3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DCF8711B-4271-48A3-B7DE-DCB265DC50F3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DCF8711B-4271-48A3-B7DE-DCB265DC50F3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DCF8711B-4271-48A3-B7DE-DCB265DC50F3}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

@@ -22,6 +22,14 @@ public class EmployeeRepository : IEmployeeRepository
             .FirstOrDefaultAsync(e => e.Id == id);
     }
 
+    public async Task<bool> AddAsync(Employee employee)
+    {
+        if (employee == null)
+            return false;
+
+        _db.Employees.Add(employee);
+        return await _db.SaveChangesAsync() > 0;
+    }
     public async Task<Employee?> GetByApplicationUserIdAsync(string applicationUserId)
     {
         if (string.IsNullOrWhiteSpace(applicationUserId)) return null;
