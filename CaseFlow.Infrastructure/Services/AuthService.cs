@@ -8,7 +8,6 @@ using CaseFlow.Domain.Enums;
 using CaseFlow.Domain.Models;
 using CaseFlow.Infrastructure.Models;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 
 public sealed class AuthService : IAuthService
@@ -86,7 +85,12 @@ public sealed class AuthService : IAuthService
         var token = CreateJwt(user, employee);
         return (true, null, token);
     }
-
+    
+    public async Task LogoutAsync()
+    {
+        await _signInManager.SignOutAsync();
+    }
+    
     private string CreateJwt(ApplicationUser user, Employee employee)
     {
         var jwt = _config.GetSection("Jwt");
