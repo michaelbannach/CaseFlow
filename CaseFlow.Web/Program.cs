@@ -24,8 +24,14 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>()
     .AddEntityFrameworkStores<AppDbContext>()
     .AddDefaultTokenProviders();
 
-var jwtSection = builder.Configuration.GetSection("JWT");
-var key = Encoding.UTF8.GetBytes(jwtSection["Key"]);
+// JWT
+var jwtSection = builder.Configuration.GetSection("Jwt");
+
+var jwtKeyString = jwtSection["Key"];
+if (string.IsNullOrWhiteSpace(jwtKeyString))
+    throw new InvalidOperationException("Jwt:Key is missing. Check appsettings.json / appsettings.Development.json.");
+
+var jwtKeyBytes = Encoding.UTF8.GetBytes(jwtKeyString);
 
 builder.Services.AddAuthentication(options =>
     {
@@ -45,11 +51,12 @@ builder.Services.AddAuthentication(options =>
             ValidateLifetime = true,
 
             ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(key),
+            IssuerSigningKey = new SymmetricSecurityKey(jwtKeyBytes),
 
             ClockSkew = TimeSpan.FromMinutes(2)
         };
     });
+
 
 builder.Services.AddAuthorization();
 builder.Services.AddControllers();
@@ -99,3 +106,5 @@ app.MapControllerRoute(
 
 
 app.Run();
+
+public partial class Program { }
