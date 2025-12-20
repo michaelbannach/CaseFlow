@@ -19,13 +19,15 @@ public class AuthFlowTests : IClassFixture<CaseFlowWebApplicationFactory>
     public async Task Register_Then_Login_Returns_Jwt_Token()
     {
         // Arrange
+        var email = $"max-{Guid.NewGuid():N}@example.com";
+
         var registerBody = new
         {
-            email = "max@example.com",
+            email,
             password = "Test123!Test123!",
             name = "Max Mustermann",
             role = "Erfasser",
-            departmentId = (int?)1
+            departmentId = (int?)null
         };
 
         // Act: Register
@@ -36,7 +38,7 @@ public class AuthFlowTests : IClassFixture<CaseFlowWebApplicationFactory>
             $"Register failed: {(int)registerResp.StatusCode} {await registerResp.Content.ReadAsStringAsync()}");
 
         // Act: Login
-        var loginBody = new { email = "max@example.com", password = "Test123!Test123!" };
+        var loginBody = new { email, password = "Test123!Test123!" };
         var loginResp = await _client.PostAsJsonAsync("/api/auth/login", loginBody);
 
         // Assert Login

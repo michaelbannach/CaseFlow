@@ -1,4 +1,6 @@
-namespace CaseFlow.Domain.Enums;
+using CaseFlow.Domain.Enums;
+
+namespace CaseFlow.Application.Contracts.Auth;
 
 public sealed class RegisterRequest
 {

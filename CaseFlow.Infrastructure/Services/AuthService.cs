@@ -2,7 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using CaseFlow.Application.Interfaces;
-using CaseFlow.Domain.Enums;
+using CaseFlow.Application.Contracts.Auth;
 
 
 using CaseFlow.Domain.Models;

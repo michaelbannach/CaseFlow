@@ -178,3 +178,4 @@ C:\Users\micha\RiderProjects\CaseFlow\CaseFlow.Web\obj\Debug\net9.0\refint\CaseF
 C:\Users\micha\RiderProjects\CaseFlow\CaseFlow.Web\obj\Debug\net9.0\CaseFlow.Web.pdb
 C:\Users\micha\RiderProjects\CaseFlow\CaseFlow.Web\obj\Debug\net9.0\CaseFlow.Web.genruntimeconfig.cache
 C:\Users\micha\RiderProjects\CaseFlow\CaseFlow.Web\obj\Debug\net9.0\ref\CaseFlow.Web.dll
+C:\Users\micha\RiderProjects\CaseFlow\CaseFlow.Web\bin\Debug\net9.0\appsettings.Testing.json

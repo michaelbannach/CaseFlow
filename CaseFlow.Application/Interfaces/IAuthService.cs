@@ -1,4 +1,4 @@
-using CaseFlow.Domain.Enums;
+using CaseFlow.Application.Contracts.Auth;
 
 namespace CaseFlow.Application.Interfaces;
 

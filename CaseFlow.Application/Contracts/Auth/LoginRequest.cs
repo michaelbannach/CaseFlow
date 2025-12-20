@@ -1,4 +1,4 @@
-namespace CaseFlow.Domain.Enums;
+namespace CaseFlow.Application.Contracts.Auth;
 
 public sealed class LoginRequest
 {
