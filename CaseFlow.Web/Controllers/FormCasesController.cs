@@ -1,12 +1,15 @@
 using CaseFlow.Application.Interfaces;
+using CaseFlow.Web.Auth;
 using CaseFlow.Web.Dtos.FormCaseDtos;
 using CaseFlow.Web.Mappings;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CaseFlow.Web.Controllers;
 
 [ApiController]
 [Route("api/formcases")]
+[Authorize]
 public class FormCasesController : ControllerBase
 {
     private readonly IFormCaseService _formCaseService;
@@ -40,15 +43,22 @@ public class FormCasesController : ControllerBase
     [HttpPost]
     [ProducesResponseType(typeof(FormCaseResponseDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(object), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult> Create([FromBody] CreateFormCaseRequestDto dto)
     {
-        // actingEmployeeId kommt aus DTO (später aus Identity/Claims)
-        if (dto.ActingEmployeeId <= 0)
-            return BadRequest(new { error = "ActingEmployeeId is required" });
+        int actingEmployeeId;
+        try
+        {
+            actingEmployeeId = User.GetEmployeeId();
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { error = ex.Message });
+        }
 
         var entity = dto.ToEntity();
 
-        var (added, error) = await _formCaseService.CreateFormCaseAsync(dto.ActingEmployeeId, entity);
+        var (added, error) = await _formCaseService.CreateFormCaseAsync(actingEmployeeId, entity);
         if (!added)
             return BadRequest(new { error });
 
@@ -59,13 +69,21 @@ public class FormCasesController : ControllerBase
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(object), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult> UpdateStatus(int id, [FromBody] UpdateStatusRequestDto dto)
     {
-        if (dto.ActingEmployeeId <= 0)
-            return BadRequest(new { error = "ActingEmployeeId is required" });
+        int actingEmployeeId;
+        try
+        {
+            actingEmployeeId = User.GetEmployeeId();
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { error = ex.Message });
+        }
 
         var (updated, error) = await _formCaseService.UpdateFormCaseStatusAsync(
-            dto.ActingEmployeeId,
+            actingEmployeeId,
             id,
             dto.NewStatus);
 
@@ -84,10 +102,18 @@ public class FormCasesController : ControllerBase
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(object), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult> Delete(int id, [FromQuery] int actingEmployeeId)
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult> Delete(int id)
     {
-        if (actingEmployeeId <= 0)
-            return BadRequest(new { error = "actingEmployeeId is required" });
+        int actingEmployeeId;
+        try
+        {
+            actingEmployeeId = User.GetEmployeeId();
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { error = ex.Message });
+        }
 
         var (deleted, error) = await _formCaseService.DeleteFormCaseAsync(actingEmployeeId, id);
 

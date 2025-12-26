@@ -12,8 +12,7 @@ public static class FormCaseMapping
             FormType = dto.FormType,
             DepartmentId = dto.DepartmentId,
             
-            CreateByEmployeeId = dto.CreatedByEmployeeId,
-
+            
             ApplicantName = dto.ApplicantName,
             ApplicantStreet = dto.ApplicantStreet,
             ApplicantZip = dto.ApplicantZip,
