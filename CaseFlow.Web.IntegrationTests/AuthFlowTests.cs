@@ -16,7 +16,7 @@ public class AuthFlowTests : IClassFixture<CaseFlowWebApplicationFactory>
     }
 
     [Fact]
-    public async Task Register_Then_Login_Returns_Jwt_Token()
+    public async Task Register_Then_Login_Then_Call_Protected_Endpoint_Succeeds()
     {
         // Arrange
         var email = $"max-{Guid.NewGuid():N}@example.com";
@@ -47,9 +47,32 @@ public class AuthFlowTests : IClassFixture<CaseFlowWebApplicationFactory>
         var json = await loginResp.Content.ReadAsStringAsync();
         using var doc = JsonDocument.Parse(json);
 
-        Assert.True(doc.RootElement.TryGetProperty("token", out var tokenEl), $"Login response missing token: {json}");
-        var token = tokenEl.GetString();
+        Assert.True(doc.RootElement.TryGetProperty("token", out var tokenEl),
+            $"Login response missing token: {json}");
 
+        var token = tokenEl.GetString();
         Assert.False(string.IsNullOrWhiteSpace(token));
+
+        // Use JWT for subsequent requests
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        // Act: Call a protected endpoint (adjust if you keep GET anonymous)
+        var protectedResp = await _client.GetAsync("/api/formcases");
+
+        // Assert: should succeed when endpoint is protected & auth pipeline is configured
+        Assert.Equal(HttpStatusCode.OK, protectedResp.StatusCode);
+    }
+
+    [Fact]
+    public async Task Protected_Endpoint_Without_Token_Returns_401()
+    {
+        // Arrange: new client without Authorization header
+        using var client = new CaseFlowWebApplicationFactory().CreateClient();
+
+        // Act
+        var resp = await client.GetAsync("/api/formcases");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Unauthorized, resp.StatusCode);
     }
 }
