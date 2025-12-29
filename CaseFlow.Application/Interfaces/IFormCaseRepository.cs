@@ -10,4 +10,6 @@ public interface IFormCaseRepository
     Task<bool> AddAsync(FormCase formCase);
     Task<bool> UpdateAsync(FormCase formCase);
     Task<bool> DeleteByIdAsync(int id);
+    
+    Task<bool>ExistsAsync(int id);
 }

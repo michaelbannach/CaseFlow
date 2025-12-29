@@ -1,34 +1,33 @@
 using System.Text;
+using System.Text.Json.Serialization;
 using CaseFlow.Application.Interfaces;
 using CaseFlow.Application.Services;
-using Microsoft.EntityFrameworkCore;
-using CaseFlow.Infrastructure.Seeding;
 using CaseFlow.Infrastructure.Data;
-using CaseFlow.Infrastructure.Repositories;
-using Microsoft.AspNetCore.Identity;
 using CaseFlow.Infrastructure.Models;
+using CaseFlow.Infrastructure.Repositories;
+using CaseFlow.Infrastructure.Seeding;
 using CaseFlow.Infrastructure.Storage;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-builder.Services.AddControllersWithViews();
+// -------------------- Data / Identity --------------------
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(
-        builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>()
     .AddEntityFrameworkStores<AppDbContext>()
     .AddDefaultTokenProviders();
 
-// JWT
-var jwtSection = builder.Configuration.GetSection("Jwt");
+// -------------------- Auth (JWT) --------------------
 
+var jwtSection = builder.Configuration.GetSection("Jwt");
 var jwtKeyString = jwtSection["Key"];
+
 if (string.IsNullOrWhiteSpace(jwtKeyString))
     throw new InvalidOperationException("Jwt:Key is missing. Check appsettings.json / appsettings.Development.json.");
 
@@ -58,34 +57,48 @@ builder.Services.AddAuthentication(options =>
         };
     });
 
-
 builder.Services.AddAuthorization();
+
+// -------------------- Controllers / JSON --------------------
+
 builder.Services.AddControllers()
-    .AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+    .AddJsonOptions(o =>
+        o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+
+// -------------------- Swagger --------------------
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+// -------------------- DI (Repositories / Services) --------------------
 
 builder.Services.AddScoped<IFormCaseRepository, FormCaseRepository>();
 builder.Services.AddScoped<IFormCaseService, FormCaseService>();
 
-builder.Services.AddScoped<IAttachmentService, AttachmentService>();
 builder.Services.AddScoped<IPdfAttachmentRepository, PdfAttachmentRepository>();
 builder.Services.AddScoped<IAttachmentStorage, LocalAttachmentStorage>();
+builder.Services.AddScoped<IAttachmentService, AttachmentService>();
 
 builder.Services.AddScoped<IEmployeeRepository, EmployeeRepository>();
 
 builder.Services.AddScoped<IAuthService, AuthService>();
 
+builder.Services.AddScoped<IClarificationMessageRepository, ClarificationMessageRepository>();
+builder.Services.AddScoped<IClarificationService, ClarificationService>();
+
+// -------------------- Build --------------------
+
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// -------------------- Pipeline --------------------
+
+// Production hardening
 if (!app.Environment.IsDevelopment())
 {
-    app.UseExceptionHandler("/Home/Error");
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
 
+// Dev-only tooling + seeding
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -94,19 +107,23 @@ if (app.Environment.IsDevelopment())
     await DevelopmentSeeder.SeedAsync(app.Services);
 }
 
-app.UseHttpsRedirection();
+// IMPORTANT for Integration Tests:
+// - TestServer does not need HTTPS redirect and it can produce unwanted redirects.
+// - Keep HTTPS redirect only for real hosting environments.
+if (!app.Environment.IsEnvironment("Testing"))
+{
+    app.UseHttpsRedirection();
+}
+
 app.UseRouting();
 
 app.UseAuthentication();
 app.UseAuthorization();
 
+app.MapControllers();
+
+// Optional: only useful if you actually serve static assets
 app.MapStaticAssets();
-
-app.MapControllerRoute(
-        name: "default",
-        pattern: "{controller=Home}/{action=Index}/{id?}")
-    .WithStaticAssets();
-
 
 app.Run();
 

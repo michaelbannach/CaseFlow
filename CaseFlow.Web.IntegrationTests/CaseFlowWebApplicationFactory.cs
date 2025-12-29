@@ -5,8 +5,10 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using CaseFlow.Infrastructure.Seeding;
 
-namespace CaseFlow.IntegrationTests;
+
+namespace CaseFlow.Web.IntegrationTests;
 
 public sealed class CaseFlowWebApplicationFactory : WebApplicationFactory<Program>
 {
@@ -14,15 +16,16 @@ public sealed class CaseFlowWebApplicationFactory : WebApplicationFactory<Progra
     {
         builder.UseEnvironment("Testing");
 
-      
-
         builder.ConfigureServices(services =>
         {
-            
             var sp = services.BuildServiceProvider();
             using var scope = sp.CreateScope();
+
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             db.Database.Migrate();
+
+          DevelopmentSeeder.SeedAsync(scope.ServiceProvider).GetAwaiter().GetResult();
         });
     }
+
 }

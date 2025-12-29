@@ -51,4 +51,7 @@ public class FormCaseRepository : IFormCaseRepository
         _db.FormCases.Remove(existing);
         return await _db.SaveChangesAsync() > 0;
     }
+    
+    public async Task<bool> ExistsAsync(int id)
+        => await _db.FormCases.AnyAsync(f => f.Id == id);
 }

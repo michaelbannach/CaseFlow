@@ -4,7 +4,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Xunit;
 
-namespace CaseFlow.IntegrationTests;
+namespace CaseFlow.Web.IntegrationTests;
 
 public class AuthFlowTests : IClassFixture<CaseFlowWebApplicationFactory>
 {
