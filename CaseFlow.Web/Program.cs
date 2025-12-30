@@ -86,6 +86,9 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IClarificationMessageRepository, ClarificationMessageRepository>();
 builder.Services.AddScoped<IClarificationService, ClarificationService>();
 
+builder.Services.AddScoped<IDepartmentRepository, DepartmentRepository>();
+builder.Services.AddScoped<IDepartmentService, DepartmentService>();
+
 // -------------------- Build --------------------
 
 var app = builder.Build();
