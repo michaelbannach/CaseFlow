@@ -1,29 +1,63 @@
-const API_BASE = import.meta.env.VITE_API_BASE_URL;
+// src/api/client.js
+const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:5180";
+export const TOKEN_KEY = "caseflow_jwt";
 
-export async function api(path, options = {}) {
-    const token = localStorage.getItem("caseflow_token");
+function getAuthHeader() {
+    const token = localStorage.getItem(TOKEN_KEY);
+    return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
-    const response = await fetch(`${API_BASE}${path}`, {
-        ...options,
-        headers: {
-            ...(options.headers || {}),
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+async function request(path, options = {}) {
+    const url = `${API_BASE}${path}`;
+
+    const headers = {
+        ...(options.headers ?? {}),
+        ...getAuthHeader(),
+    };
+
+    const resp = await fetch(url, { ...options, headers });
+
+    // Optional: Auto-Logout bei 401
+    if (resp.status === 401) {
+        localStorage.removeItem(TOKEN_KEY);
+    }
+
+    // NoContent
+    if (resp.status === 204) return null;
+
+    const contentType = resp.headers.get("content-type") ?? "";
+    const isJson = contentType.includes("application/json");
+
+    if (!resp.ok) {
+        let msg = `Request failed (${resp.status})`;
+        try {
+            const body = isJson ? await resp.json() : await resp.text();
+            msg = body?.error ?? body?.title ?? body ?? msg;
+        } catch {
+            // ignore
+        }
+        throw new Error(msg);
+    }
+
+    return isJson ? resp.json() : resp.text();
+}
+
+export function apiGet(path) {
+    return request(path, { method: "GET" });
+}
+
+export function apiPost(path, body) {
+    return request(path, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body ?? {}),
     });
+}
 
-    if (response.status === 401) {
-        localStorage.removeItem("caseflow_token");
-        window.location.href = "/login";
-        return;
-    }
-
-    if (!response.ok) {
-        const text = await response.text();
-        throw new Error(text || `HTTP ${response.status}`);
-    }
-
-    // Falls mal 204 No Content zurückkommt:
-    if (response.status === 204) return null;
-
-    return response.json();
+export function apiPatch(path, body) {
+    return request(path, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body ?? {}),
+    });
 }

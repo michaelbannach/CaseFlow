@@ -1,6 +1,6 @@
-import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import { createCase } from "../api/formCaseApi";
+import React, { useEffect, useState } from "react";
 
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
@@ -12,6 +12,8 @@ import Alert from "@mui/material/Alert";
 import MenuItem from "@mui/material/MenuItem";
 import Divider from "@mui/material/Divider";
 import InputAdornment from "@mui/material/InputAdornment";
+import { getDepartments } from "../api/departmentApi";
+
 
 const FORM_TYPES = [
     { value: 0, label: "Leistungsantrag" },
@@ -129,10 +131,29 @@ export default function CaseCreatePage() {
     const [errors, setErrors] = React.useState({});
     const [submitError, setSubmitError] = React.useState(null);
     const [submitting, setSubmitting] = React.useState(false);
+    const [departments, setDepartments] = useState([]);
+    const [deptLoading, setDeptLoading] = React.useState(false);
 
     function setField(name, value) {
         setState((prev) => ({ ...prev, [name]: value }));
     }
+    useEffect(() => {
+        let mounted = true;
+
+        (async () => {
+            try {
+                setDeptLoading(true);
+                const data = await getDepartments();
+                if (mounted) setDepartments(Array.isArray(data) ? data : []);
+            } catch (e) {
+                console.error("Load departments failed:", e);
+            } finally {
+                if (mounted) setDeptLoading(false);
+            }
+        })();
+
+        return () => { mounted = false; };
+    }, []);
 
     async function onSubmit(e) {
         e.preventDefault();
@@ -247,13 +268,26 @@ export default function CaseCreatePage() {
                                 fullWidth
                             />
                             <TextField
-                                label="Abteilung ID"
+                                select
+                                label="Abteilung"
                                 value={state.departmentId}
                                 onChange={(e) => setField("departmentId", e.target.value)}
                                 error={!!errors.departmentId}
                                 helperText={errors.departmentId}
                                 fullWidth
-                            />
+                                disabled={deptLoading}
+                            >
+                                <MenuItem value="">
+                                    <em>Bitte auswählen</em>
+                                </MenuItem>
+
+                                {departments.map((d) => (
+                                    <MenuItem key={d.id} value={String(d.id)}>
+                                        {d.name}
+                                    </MenuItem>
+                                ))}
+                            </TextField>
+
                         </Stack>
 
                         <Divider />
