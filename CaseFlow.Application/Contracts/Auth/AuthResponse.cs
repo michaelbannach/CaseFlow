@@ -1,4 +1,4 @@
-namespace CaseFlow.Domain.Enums;
+namespace CaseFlow.Application.Auth;
 
 public class AuthResponse
 {

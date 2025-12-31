@@ -65,6 +65,17 @@ builder.Services.AddControllers()
     .AddJsonOptions(o =>
         o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("Frontend", policy =>
+    {
+        policy
+            .WithOrigins("http://localhost:5173")   // Vite default
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
+
 // -------------------- Swagger --------------------
 
 builder.Services.AddEndpointsApiExplorer();
@@ -119,7 +130,7 @@ if (!app.Environment.IsEnvironment("Testing"))
 }
 
 app.UseRouting();
-
+app.UseCors("Frontend");
 app.UseAuthentication();
 app.UseAuthorization();
 
