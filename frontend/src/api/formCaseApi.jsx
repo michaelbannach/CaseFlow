@@ -1,19 +1,22 @@
-import { apiPost, apiGet, apiPatch } from "./client"; // oder dein fetch-wrapper
+// src/api/formCaseApi.jsx
+import { apiPost, apiGet, apiPatch } from "./client";
 
-export async function createCase(payload) {
+// Create
+export function createCase(payload) {
     return apiPost("/api/formcases", payload);
 }
 
-export async function getCases() {
+// List all cases
+export function getCases() {
+    return apiGet("/api/formcases");
+}
+
+// Get single case
+export function getCaseById(id) {
     return apiGet(`/api/formcases/${id}`);
 }
 
-export async function getCaseById(id) {
-    return apiGet(`/api/formcases/${id}`);
-}
-
-export async function setCaseStatus(id, newStatus) {
-    return apiPatch(`/api/formcases/${id}/status`, { newStatus });
+// Update status
 export function updateCaseStatus(id, newStatus) {
     return apiPatch(`/api/formcases/${id}/status`, { newStatus });
 }
