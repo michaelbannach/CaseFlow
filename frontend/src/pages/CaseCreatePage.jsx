@@ -13,6 +13,7 @@ import MenuItem from "@mui/material/MenuItem";
 import Divider from "@mui/material/Divider";
 import InputAdornment from "@mui/material/InputAdornment";
 import { getDepartments } from "../api/departmentApi";
+import { uploadAttachment } from "../api/attachmentApi";
 
 
 const FORM_TYPES = [
@@ -75,10 +76,10 @@ function buildPayload(state) {
     };
 }
 
-function validate(state) {
+function validate(state, pdfFile) {
     const errors = {};
 
-    // Basis (minimal, aber sinnvoll)
+    // Basis
     if (!state.applicantName.trim()) errors.applicantName = "Pflichtfeld";
     if (!state.applicantStreet.trim()) errors.applicantStreet = "Pflichtfeld";
     if (!String(state.applicantZip).trim()) errors.applicantZip = "Pflichtfeld";
@@ -86,7 +87,10 @@ function validate(state) {
     if (!state.applicantEmail.trim()) errors.applicantEmail = "Pflichtfeld";
     if (!String(state.departmentId).trim()) errors.departmentId = "Pflichtfeld";
 
-    // Typ-spezifisch (optional streng, aber UX-gut)
+    // PDF Pflicht
+    if (!pdfFile) errors.pdfFile = "PDF ist erforderlich";
+
+    // Typ-spezifisch (wie bei dir)
     const ft = asInt(state.formType);
     if (ft === 0) {
         if (!state.serviceDescription.trim()) errors.serviceDescription = "Pflichtfeld";
@@ -102,6 +106,7 @@ function validate(state) {
 
     return errors;
 }
+
 
 export default function CaseCreatePage() {
     const navigate = useNavigate();
@@ -133,7 +138,8 @@ export default function CaseCreatePage() {
     const [submitting, setSubmitting] = React.useState(false);
     const [departments, setDepartments] = useState([]);
     const [deptLoading, setDeptLoading] = React.useState(false);
-
+    const [pdfFile, setPdfFile] = React.useState(null);
+    
     function setField(name, value) {
         setState((prev) => ({ ...prev, [name]: value }));
     }
@@ -159,7 +165,7 @@ export default function CaseCreatePage() {
         e.preventDefault();
         setSubmitError(null);
 
-        const v = validate(state);
+        const v = validate(state, pdfFile);
         setErrors(v);
         if (Object.keys(v).length > 0) return;
 
@@ -167,7 +173,10 @@ export default function CaseCreatePage() {
         try {
             const payload = buildPayload(state);
             const created = await createCase(payload);
+            
+            await uploadAttachment(created.id, pdfFile);
 
+          
             // Falls API das neue Objekt inkl. id zurückgibt:
             if (created?.id) {
                 navigate(`/cases/${created.id}`);
@@ -225,6 +234,7 @@ export default function CaseCreatePage() {
                             />
                             <TextField
                                 label="E-Mail"
+                                type="email"
                                 value={state.applicantEmail}
                                 onChange={(e) => setField("applicantEmail", e.target.value)}
                                 error={!!errors.applicantEmail}
@@ -244,6 +254,7 @@ export default function CaseCreatePage() {
                             />
                             <TextField
                                 label="PLZ"
+                                type="number"
                                 value={state.applicantZip}
                                 onChange={(e) => setField("applicantZip", e.target.value)}
                                 error={!!errors.applicantZip}
@@ -390,8 +401,23 @@ export default function CaseCreatePage() {
                                     minRows={4}
                                     fullWidth
                                 />
+                                
                             </>
                         )}
+
+                        <Typography variant="subtitle1" fontWeight={600}>
+                            Pflicht-Anhang (PDF)
+                        </Typography>
+
+                        <TextField
+                            type="file"
+                            inputProps={{ accept: "application/pdf" }}
+                            error={!!errors.pdfFile}
+                            helperText={errors.pdfFile}
+                            onChange={(e) => setPdfFile(e.target.files?.[0] ?? null)}
+                            fullWidth
+                        />
+
 
                         <Divider />
 

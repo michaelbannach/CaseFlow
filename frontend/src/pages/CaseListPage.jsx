@@ -160,7 +160,7 @@ export default function CaseListPage() {
                                         key={c.id}
                                         hover
                                         sx={{ cursor: "pointer" }}
-                                        onClick={() => navigate(`/cases/${c.id}`)}
+                                        onClick={() => window.open(`/cases/${c.id}`, "_blank", "noopener,noreferrer")}
                                     >
                                         <TableCell>{c.id}</TableCell>
                                         <TableCell>{safeText(c.applicantName) || "-"}</TableCell>
