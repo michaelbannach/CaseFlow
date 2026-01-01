@@ -5,7 +5,7 @@ export async function createCase(payload) {
 }
 
 export async function getCases() {
-    return apiGet("/api/formcases");
+    return apiGet(`/api/formcases/${id}`);
 }
 
 export async function getCaseById(id) {
@@ -13,5 +13,7 @@ export async function getCaseById(id) {
 }
 
 export async function setCaseStatus(id, newStatus) {
+    return apiPatch(`/api/formcases/${id}/status`, { newStatus });
+export function updateCaseStatus(id, newStatus) {
     return apiPatch(`/api/formcases/${id}/status`, { newStatus });
 }
