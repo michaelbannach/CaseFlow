@@ -23,7 +23,17 @@ public class FormCasesController : ControllerBase
     [ProducesResponseType(typeof(List<FormCaseResponseDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<List<FormCaseResponseDto>>> GetAll()
     {
-        var cases = await _formCaseService.GetAllFormCasesAsync();
+        int actingEmployeeId;
+        try
+        {
+            actingEmployeeId = User.GetEmployeeId();
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { error = ex.Message });
+        }
+
+        var cases = await _formCaseService.GetAllVisibleFormCasesAsync(actingEmployeeId);
         var dtos = cases.Select(c => c.ToDto()).ToList();
         return Ok(dtos);
     }
@@ -31,14 +41,28 @@ public class FormCasesController : ControllerBase
     [HttpGet("{id:int}")]
     [ProducesResponseType(typeof(FormCaseResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<FormCaseResponseDto>> GetById(int id)
     {
-        var formCase = await _formCaseService.GetFormCaseByIdAsync(id);
+        int actingEmployeeId;
+        try
+        {
+            actingEmployeeId = User.GetEmployeeId();
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { error = ex.Message });
+        }
+
+        var formCase = await _formCaseService
+            .GetVisibleFormCaseByIdAsync(actingEmployeeId, id);
+
         if (formCase is null)
             return NotFound();
 
         return Ok(formCase.ToDto());
     }
+
 
     [HttpPost]
     [ProducesResponseType(typeof(FormCaseResponseDto), StatusCodes.Status201Created)]

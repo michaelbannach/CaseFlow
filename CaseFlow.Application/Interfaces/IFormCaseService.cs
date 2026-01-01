@@ -21,4 +21,8 @@ public interface IFormCaseService
     Task<(bool deleted, string? error)> DeleteFormCaseAsync(
         int actingEmployeeId,
         int formCaseId);
+    
+    Task<List<FormCase>> GetAllVisibleFormCasesAsync(int actingEmployeeId);
+    Task<FormCase?> GetVisibleFormCaseByIdAsync(int actingEmployeeId, int formCaseId);
+
 }

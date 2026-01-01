@@ -9,22 +9,24 @@ public class FormCaseService : IFormCaseService
 {
     private readonly IFormCaseRepository _formCaseRepository;
     private readonly IEmployeeRepository _employeeRepository;
-    private readonly ILogger<FormCaseService> _logger;
     private readonly IPdfAttachmentRepository _attachmentRepository;
-
+    private readonly ILogger<FormCaseService> _logger;
 
     public FormCaseService(
         IFormCaseRepository formCaseRepository,
         IEmployeeRepository employeeRepository,
         IPdfAttachmentRepository attachmentRepository,
         ILogger<FormCaseService> logger)
-        
     {
         _formCaseRepository = formCaseRepository;
         _employeeRepository = employeeRepository;
         _attachmentRepository = attachmentRepository;
         _logger = logger;
     }
+
+    // ----------------------------
+    // READ (admin/dev use)
+    // ----------------------------
 
     public async Task<List<FormCase>> GetAllFormCasesAsync()
     {
@@ -42,6 +44,59 @@ public class FormCaseService : IFormCaseService
         return await _formCaseRepository.GetByIdAsync(formCaseId);
     }
 
+    // ----------------------------
+    // VISIBILITY (secure reads)
+    // ----------------------------
+
+    public async Task<List<FormCase>> GetAllVisibleFormCasesAsync(int actingEmployeeId)
+    {
+        if (actingEmployeeId <= 0) return new List<FormCase>();
+
+        var actor = await _employeeRepository.GetByIdAsync(actingEmployeeId);
+        if (actor is null) return new List<FormCase>();
+
+        var all = await _formCaseRepository.GetAllAsync();
+
+        // Stammdaten: alles
+        if (actor.Role == UserRole.Stammdaten)
+            return all;
+
+        // Erfasser: nur eigene
+        if (actor.Role == UserRole.Erfasser)
+            return all.Where(x => x.CreateByEmployeeId == actor.Id).ToList();
+
+        // Sachbearbeiter: nur eigene Abteilung
+        // (robust: Zuständigkeit wird über DepartmentId gesteuert, nicht zusätzlich über FormType)
+        if (actor.Role == UserRole.Sachbearbeiter)
+            return all.Where(x => x.DepartmentId == actor.DepartmentId).ToList();
+
+        return new List<FormCase>();
+    }
+
+    public async Task<FormCase?> GetVisibleFormCaseByIdAsync(int actingEmployeeId, int formCaseId)
+    {
+        if (actingEmployeeId <= 0 || formCaseId <= 0) return null;
+
+        var actor = await _employeeRepository.GetByIdAsync(actingEmployeeId);
+        if (actor is null) return null;
+
+        var fc = await _formCaseRepository.GetByIdAsync(formCaseId);
+        if (fc is null) return null;
+
+        if (actor.Role == UserRole.Stammdaten)
+            return fc;
+
+        if (actor.Role == UserRole.Erfasser)
+            return fc.CreateByEmployeeId == actor.Id ? fc : null;
+
+        if (actor.Role == UserRole.Sachbearbeiter)
+            return fc.DepartmentId == actor.DepartmentId ? fc : null;
+
+        return null;
+    }
+    
+    // CREATE
+    
     public async Task<(bool added, string? error)> CreateFormCaseAsync(int actingEmployeeId, FormCase formCase)
     {
         if (actingEmployeeId <= 0)
@@ -51,18 +106,15 @@ public class FormCaseService : IFormCaseService
         if (actor is null)
             return (false, "Unknown employee");
 
-       
         if (actor.Role == UserRole.Stammdaten)
             return (false, "Not allowed");
 
-        
         if (actor.Role != UserRole.Erfasser)
             return (false, "Not allowed");
 
         if (formCase is null)
             return (false, "FormCase is null");
 
-      
         if (formCase.DepartmentId <= 0)
             return (false, "Department is required");
 
@@ -78,7 +130,6 @@ public class FormCaseService : IFormCaseService
         if (string.IsNullOrWhiteSpace(formCase.ApplicantCity))
             return (false, "ApplicantCity is required");
 
-     
         formCase.CreateByEmployeeId = actor.Id;
         formCase.Status = ProcessingStatus.Neu;
 
@@ -96,100 +147,105 @@ public class FormCaseService : IFormCaseService
 
         return (true, null);
     }
-
+    
+    // STATUS / WORKFLOW
+    
     public async Task<(bool updated, string? error)> UpdateFormCaseStatusAsync(
-    int actingEmployeeId,
-    int formCaseId,
-    ProcessingStatus newStatus)
-{
-    if (actingEmployeeId <= 0)
-        return (false, "Unknown employee");
+        int actingEmployeeId,
+        int formCaseId,
+        ProcessingStatus newStatus)
+    {
+        if (actingEmployeeId <= 0)
+            return (false, "Unknown employee");
 
-    if (formCaseId <= 0)
-        return (false, "Invalid FormCaseId");
+        if (formCaseId <= 0)
+            return (false, "Invalid FormCaseId");
 
-    var actor = await _employeeRepository.GetByIdAsync(actingEmployeeId);
-    if (actor is null)
-        return (false, "Unknown employee");
+        var actor = await _employeeRepository.GetByIdAsync(actingEmployeeId);
+        if (actor is null)
+            return (false, "Unknown employee");
 
-    if (actor.Role == UserRole.Stammdaten)
-        return (false, "Not allowed");
+        if (actor.Role == UserRole.Stammdaten)
+            return (false, "Not allowed");
 
-    var formCase = await _formCaseRepository.GetByIdAsync(formCaseId);
-    if (formCase is null)
-        return (false, "FormCase not found");
+        var formCase = await _formCaseRepository.GetByIdAsync(formCaseId);
+        if (formCase is null)
+            return (false, "FormCase not found");
 
-    var currentStatus = formCase.Status;
+        var currentStatus = formCase.Status;
 
-    if (currentStatus == newStatus)
+        if (currentStatus == newStatus)
+            return (true, null);
+
+        var isOwner = formCase.CreateByEmployeeId == actor.Id;
+
+        // 1) Base transition rules
+        if (!IsTransitionAllowed(currentStatus, newStatus, actor.Role, isOwner))
+        {
+            _logger.LogWarning(
+                "UpdateFormCaseStatusAsync: Transition not allowed. Actor={ActorId}, Role={Role}, Case={CaseId}, From={From}, To={To}, Owner={Owner}",
+                actor.Id, actor.Role, formCase.Id, currentStatus, newStatus, isOwner);
+
+            return (false, "Not allowed");
+        }
+
+        // 2) PDF rule: leaving Neu requires at least one attachment
+        if (currentStatus == ProcessingStatus.Neu && newStatus != ProcessingStatus.Neu)
+        {
+            var attachments = await _attachmentRepository.GetByFormCaseIdAsync(formCaseId);
+            if (attachments.Count == 0)
+                return (false, "At least one PDF attachment is required");
+        }
+
+        // 3) Department rule: Sachbearbeiter only in own department
+        if (actor.Role == UserRole.Sachbearbeiter && actor.DepartmentId != formCase.DepartmentId)
+            return (false, "Not allowed");
+
+        // 4) Lock rules
+        if (actor.Role == UserRole.Sachbearbeiter)
+        {
+            // Neu -> InBearbeitung: lock setzen / prüfen
+            if (currentStatus == ProcessingStatus.Neu && newStatus == ProcessingStatus.InBearbeitung)
+            {
+                if (formCase.ProcessingEmployeeId is null)
+                    formCase.ProcessingEmployeeId = actor.Id;
+                else if (formCase.ProcessingEmployeeId != actor.Id)
+                    return (false, "Not allowed");
+            }
+
+            // InBearbeitung -> InKlaerung/Erledigt: nur lock-owner
+            if (currentStatus == ProcessingStatus.InBearbeitung &&
+                (newStatus == ProcessingStatus.InKlaerung || newStatus == ProcessingStatus.Erledigt))
+            {
+                if (formCase.ProcessingEmployeeId != actor.Id)
+                    return (false, "Not allowed");
+            }
+        }
+
+        if (actor.Role == UserRole.Erfasser)
+        {
+            // InKlaerung -> Neu: lock freigeben
+            if (currentStatus == ProcessingStatus.InKlaerung && newStatus == ProcessingStatus.Neu)
+                formCase.ProcessingEmployeeId = null;
+        }
+
+        // 5) Apply & save
+        formCase.Status = newStatus;
+        formCase.UpdatedAt = DateTimeOffset.UtcNow;
+
+        var ok = await _formCaseRepository.UpdateAsync(formCase);
+        if (!ok)
+        {
+            _logger.LogError("UpdateFormCaseStatusAsync: Failed to update FormCaseId {Id}", formCase.Id);
+            return (false, "Error while updating status");
+        }
+
         return (true, null);
-
-    var isOwner = formCase.CreateByEmployeeId == actor.Id;
-
-    // 1) Base transition rules
-    if (!IsTransitionAllowed(currentStatus, newStatus, actor.Role, isOwner))
-    {
-        _logger.LogWarning(
-            "UpdateFormCaseStatusAsync: Transition not allowed. Actor={ActorId}, Role={Role}, Case={CaseId}, From={From}, To={To}, Owner={Owner}",
-            actor.Id, actor.Role, formCase.Id, currentStatus, newStatus, isOwner);
-
-        return (false, "Not allowed");
     }
 
-    // 2) PDF rule: leaving Neu requires at least one attachment
-    if (currentStatus == ProcessingStatus.Neu && newStatus != ProcessingStatus.Neu)
-    {
-        var attachments = await _attachmentRepository.GetByFormCaseIdAsync(formCaseId);
-        if (attachments.Count == 0)
-            return (false, "At least one PDF attachment is required");
-    }
-
-    // 3) Department rule: Sachbearbeiter only in own department
-    if (actor.Role == UserRole.Sachbearbeiter && actor.DepartmentId != formCase.DepartmentId)
-        return (false, "Not allowed");
-
-    // 4) Lock rules (make sure property name matches your FormCase model!)
-    if (actor.Role == UserRole.Sachbearbeiter)
-    {
-        // Neu -> InBearbeitung: lock setzen / prüfen
-        if (currentStatus == ProcessingStatus.Neu && newStatus == ProcessingStatus.InBearbeitung)
-        {
-            if (formCase.ProcessingEmployeeId is null)
-                formCase.ProcessingEmployeeId = actor.Id;
-            else if (formCase.ProcessingEmployeeId != actor.Id)
-                return (false, "Not allowed");
-        }
-
-        // InBearbeitung -> InKlaerung/Erledigt: nur lock-owner
-        if (currentStatus == ProcessingStatus.InBearbeitung &&
-            (newStatus == ProcessingStatus.InKlaerung || newStatus == ProcessingStatus.Erledigt))
-        {
-            if (formCase.ProcessingEmployeeId != actor.Id)
-                return (false, "Not allowed");
-        }
-    }
-
-    if (actor.Role == UserRole.Erfasser)
-    {
-        // InKlaerung -> Neu: lock freigeben
-        if (currentStatus == ProcessingStatus.InKlaerung && newStatus == ProcessingStatus.Neu)
-            formCase.ProcessingEmployeeId = null;
-    }
-
-    // 5) Apply & save
-    formCase.Status = newStatus;
-    formCase.UpdatedAt = DateTimeOffset.UtcNow;
-
-    var ok = await _formCaseRepository.UpdateAsync(formCase);
-    if (!ok)
-    {
-        _logger.LogError("UpdateFormCaseStatusAsync: Failed to update FormCaseId {Id}", formCase.Id);
-        return (false, "Error while updating status");
-    }
-
-    return (true, null);
-}
-
+    
+    // DELETE
+    
 
     public async Task<(bool deleted, string? error)> DeleteFormCaseAsync(int actingEmployeeId, int formCaseId)
     {
@@ -203,17 +259,16 @@ public class FormCaseService : IFormCaseService
         if (actor is null)
             return (false, "Unknown employee");
 
-      
         if (actor.Role == UserRole.Stammdaten)
             return (false, "Not allowed");
-        
+
         if (actor.Role != UserRole.Sachbearbeiter)
             return (false, "Not allowed");
 
         var existing = await _formCaseRepository.GetByIdAsync(formCaseId);
         if (existing is null)
             return (false, "FormCase not found");
-        
+
         var deleted = await _formCaseRepository.DeleteByIdAsync(formCaseId);
         if (!deleted)
         {
@@ -224,6 +279,10 @@ public class FormCaseService : IFormCaseService
         return (true, null);
     }
 
+    
+    // HELPERS
+   
+
     private static bool IsTransitionAllowed(
         ProcessingStatus current,
         ProcessingStatus next,
@@ -233,7 +292,6 @@ public class FormCaseService : IFormCaseService
         if (role == UserRole.Stammdaten)
             return false;
 
-       
         if (role == UserRole.Erfasser)
         {
             if (!isOwner) return false;
@@ -241,7 +299,7 @@ public class FormCaseService : IFormCaseService
             return current == ProcessingStatus.InKlaerung
                    && next == ProcessingStatus.Neu;
         }
-        
+
         if (role == UserRole.Sachbearbeiter)
         {
             if (current == ProcessingStatus.InKlaerung) return false;
