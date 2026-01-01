@@ -12,6 +12,8 @@ import FolderOpenOutlinedIcon from "@mui/icons-material/FolderOpenOutlined";
 import AddCircleOutlineOutlinedIcon from "@mui/icons-material/AddCircleOutlineOutlined";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 
+import { getAuthContext } from "../api/client";
+
 const drawerWidth = 280;
 
 export default function Sidebar({
@@ -20,13 +22,29 @@ export default function Sidebar({
                                     onNavigate,
                                     currentPath,
                                 }) {
+    const auth = getAuthContext();
+    const role = auth?.role;
+
+    // Nur Erfasser dürfen neue Fälle anlegen
+    const canCreate = role === "Erfasser";
+
     const items = [
         { label: "Dashboard", path: "/", icon: <HomeOutlinedIcon /> },
         { label: "Fälle", path: "/cases", icon: <FolderOpenOutlinedIcon /> },
-        { label: "Neuer Fall", path: "/cases/new", icon: <AddCircleOutlineOutlinedIcon /> },
+        ...(canCreate
+            ? [
+                {
+                    label: "Neuer Fall",
+                    path: "/cases/new",
+                    icon: <AddCircleOutlineOutlinedIcon />,
+                },
+            ]
+            : []),
     ];
 
-    const secondary = [{ label: "Einstellungen", path: "/settings", icon: <SettingsOutlinedIcon /> }];
+    const secondary = [
+        { label: "Einstellungen", path: "/settings", icon: <SettingsOutlinedIcon /> },
+    ];
 
     const drawerContent = (
         <div>
@@ -47,7 +65,9 @@ export default function Sidebar({
                     </ListItemButton>
                 ))}
             </List>
+
             <Divider />
+
             <List>
                 {secondary.map((it) => (
                     <ListItemButton
@@ -68,7 +88,7 @@ export default function Sidebar({
 
     return (
         <>
-            {/* Mobile: temporär */}
+            {/* Mobile */}
             <Drawer
                 variant="temporary"
                 open={mobileOpen}
@@ -82,13 +102,16 @@ export default function Sidebar({
                 {drawerContent}
             </Drawer>
 
-            {/* Desktop: permanent */}
+            {/* Desktop */}
             <Drawer
                 variant="permanent"
                 open
                 sx={{
                     display: { xs: "none", md: "block" },
-                    "& .MuiDrawer-paper": { width: drawerWidth, boxSizing: "border-box" },
+                    "& .MuiDrawer-paper": {
+                        width: drawerWidth,
+                        boxSizing: "border-box",
+                    },
                 }}
             >
                 {drawerContent}

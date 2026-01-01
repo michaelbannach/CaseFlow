@@ -4,6 +4,7 @@ import { useParams } from "react-router-dom";
 import { getCaseById, updateCaseStatus } from "../api/formCaseApi";
 import { getAttachments, openAttachmentInNewTab } from "../api/attachmentApi";
 import { getDepartments } from "../api/departmentApi";
+import { getAuthContext } from "../api/client";
 
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
@@ -16,7 +17,6 @@ import List from "@mui/material/List";
 import ListItemButton from "@mui/material/ListItemButton";
 import ListItemText from "@mui/material/ListItemText";
 import Button from "@mui/material/Button";
-
 
 const FORM_TYPES = [
     { value: 0, label: "Dienstleistungsantrag" },
@@ -32,21 +32,54 @@ function asInt(v) {
 export default function CaseDetailPage() {
     const { id } = useParams();
 
+    const auth = getAuthContext();
+    const role = auth?.role;
+
+    const isStammdaten = role === "Stammdaten";
+    const isSachbearbeiter = role === "Sachbearbeiter";
+
     const [formCase, setFormCase] = React.useState(null);
     const [attachments, setAttachments] = React.useState([]);
     const [departments, setDepartments] = React.useState([]);
-    const [loading, setLoading] = React.useState(true);
-    const [error, setError] = React.useState(null);
 
+    const [loading, setLoading] = React.useState(true);
+    const [error, setError] = React.useState("");
     const [actionError, setActionError] = React.useState("");
     const [busy, setBusy] = React.useState(false);
 
+    async function loadAll() {
+        setLoading(true);
+        setError("");
+        try {
+            const [fc, atts, depts] = await Promise.all([
+                getCaseById(id),
+                getAttachments(id),
+                getDepartments(),
+            ]);
+
+            setFormCase(fc);
+            setAttachments(Array.isArray(atts) ? atts : []);
+            setDepartments(Array.isArray(depts) ? depts : []);
+        } catch (e) {
+            setError(e?.message ?? "Fehler beim Laden.");
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    React.useEffect(() => {
+        loadAll();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [id]);
+
     async function setStatus(newStatus) {
+        if (!formCase) return;
+
         setBusy(true);
         setActionError("");
         try {
             await updateCaseStatus(formCase.id, newStatus);
-            await loadAll(); // reload case + attachments + departments
+            await loadAll();
         } catch (e) {
             setActionError(e?.message ?? "Aktion fehlgeschlagen");
         } finally {
@@ -55,77 +88,43 @@ export default function CaseDetailPage() {
     }
 
     function closeTabOrBack() {
-        // funktioniert, weil der Tab per window.open() geöffnet wurde
         window.close();
-
-        // Fallback, falls Browser close blockt
         setTimeout(() => {
             window.location.href = "/cases";
         }, 50);
     }
 
-    React.useEffect(() => {
-        let mounted = true;
-
-        (async () => {
-            setLoading(true);
-            setError(null);
-
-            try {
-                const [fc, atts, depts] = await Promise.all([
-                    getCaseById(id),
-                    getAttachments(id),
-                    getDepartments(),
-                ]);
-
-                if (!mounted) return;
-
-                setFormCase(fc);
-                setAttachments(Array.isArray(atts) ? atts : []);
-                setDepartments(Array.isArray(depts) ? depts : []);
-            } catch (e) {
-                if (!mounted) return;
-                setError(e?.message ?? "Fehler beim Laden.");
-            } finally {
-                if (mounted) setLoading(false);
-            }
-        })();
-
-        return () => {
-            mounted = false;
-        };
-    }, [id]);
+    if (loading) return <Typography>Lade…</Typography>;
+    if (error) return <Alert severity="error">{error}</Alert>;
+    if (!formCase) return <Alert severity="warning">Fall nicht gefunden.</Alert>;
 
     const deptName =
-        formCase?.departmentId && departments.length
-            ? (departments.find((d) => d.id === formCase.departmentId)?.name ??
-                `Department ${formCase.departmentId}`)
+        formCase.departmentId && departments.length
+            ? departments.find((d) => d.id === formCase.departmentId)?.name ??
+            `Department ${formCase.departmentId}`
             : "";
 
-    const formType = asInt(formCase?.formType ?? 0);
-    const formTypeLabel = FORM_TYPES.find((t) => t.value === formType)?.label ?? String(formType);
-
-    if (loading) {
-        return (
-            <Typography variant="body1">Lade…</Typography>
-        );
-    }
-
-    if (error) {
-        return <Alert severity="error">{error}</Alert>;
-    }
-
-    if (!formCase) {
-        return <Alert severity="warning">Fall nicht gefunden.</Alert>;
-    }
+    const formType = asInt(formCase.formType ?? 0);
+    const formTypeLabel =
+        FORM_TYPES.find((t) => t.value === formType)?.label ?? String(formType);
 
     return (
         <Box>
-            <Typography variant="h5" fontWeight={600} sx={{ mb: 2 }}>
+            <Typography variant="h5" fontWeight={600} sx={{ mb: 1 }}>
                 Fall #{formCase.id}
             </Typography>
+
+            {/* ACTION BAR */}
             <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
-                {formCase.status === "Neu" && (
+                {/* Stammdaten: nur schließen */}
+                {isStammdaten && (
+                    <Button variant="text" onClick={closeTabOrBack}>
+                        Schließen
+                    </Button>
+                )}
+
+                {/* Sachbearbeiter */}
+                {!isStammdaten && isSachbearbeiter && formCase.status === "Neu" && (
                     <Button
                         variant="contained"
                         disabled={busy}
@@ -135,7 +134,7 @@ export default function CaseDetailPage() {
                     </Button>
                 )}
 
-                {formCase.status === "InBearbeitung" && (
+                {!isStammdaten && isSachbearbeiter && formCase.status === "InBearbeitung" && (
                     <>
                         <Button
                             variant="outlined"
@@ -166,9 +165,15 @@ export default function CaseDetailPage() {
                 </Alert>
             )}
 
+            {/* FORMULAR */}
             <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
                 <Stack spacing={2}>
-                    <TextField label="Antragstyp" value={formTypeLabel} fullWidth InputProps={{ readOnly: true }} />
+                    <TextField
+                        label="Antragstyp"
+                        value={formTypeLabel}
+                        fullWidth
+                        InputProps={{ readOnly: true }}
+                    />
 
                     <Divider />
 
@@ -177,19 +182,54 @@ export default function CaseDetailPage() {
                     </Typography>
 
                     <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-                        <TextField label="Name" value={formCase.applicantName ?? ""} fullWidth InputProps={{ readOnly: true }} />
-                        <TextField label="E-Mail" value={formCase.applicantEmail ?? ""} fullWidth InputProps={{ readOnly: true }} />
+                        <TextField
+                            label="Name"
+                            value={formCase.applicantName ?? ""}
+                            fullWidth
+                            InputProps={{ readOnly: true }}
+                        />
+                        <TextField
+                            label="E-Mail"
+                            value={formCase.applicantEmail ?? ""}
+                            fullWidth
+                            InputProps={{ readOnly: true }}
+                        />
                     </Stack>
 
                     <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-                        <TextField label="Straße" value={formCase.applicantStreet ?? ""} fullWidth InputProps={{ readOnly: true }} />
-                        <TextField label="PLZ" value={formCase.applicantZip ?? ""} fullWidth InputProps={{ readOnly: true }} />
-                        <TextField label="Stadt" value={formCase.applicantCity ?? ""} fullWidth InputProps={{ readOnly: true }} />
+                        <TextField
+                            label="Straße"
+                            value={formCase.applicantStreet ?? ""}
+                            fullWidth
+                            InputProps={{ readOnly: true }}
+                        />
+                        <TextField
+                            label="PLZ"
+                            value={formCase.applicantZip ?? ""}
+                            fullWidth
+                            InputProps={{ readOnly: true }}
+                        />
+                        <TextField
+                            label="Stadt"
+                            value={formCase.applicantCity ?? ""}
+                            fullWidth
+                            InputProps={{ readOnly: true }}
+                        />
                     </Stack>
 
                     <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-                        <TextField label="Telefon" value={formCase.applicantPhone ?? ""} fullWidth InputProps={{ readOnly: true }} />
-                        <TextField label="Abteilung" value={deptName} fullWidth InputProps={{ readOnly: true }} />
+                        <TextField
+                            label="Telefon"
+                            value={formCase.applicantPhone ?? ""}
+                            fullWidth
+                            InputProps={{ readOnly: true }}
+                        />
+                        <TextField
+                            label="Abteilung"
+                            value={deptName}
+                            fullWidth
+                            InputProps={{ readOnly: true }}
+                        />
                     </Stack>
 
                     <Divider />
@@ -198,7 +238,12 @@ export default function CaseDetailPage() {
                         Fallinformationen
                     </Typography>
 
-                    <TextField label="Betreff" value={formCase.subject ?? ""} fullWidth InputProps={{ readOnly: true }} />
+                    <TextField
+                        label="Betreff"
+                        value={formCase.subject ?? ""}
+                        fullWidth
+                        InputProps={{ readOnly: true }}
+                    />
                     <TextField
                         label="Notizen"
                         value={formCase.notes ?? ""}
@@ -209,30 +254,6 @@ export default function CaseDetailPage() {
                     />
 
                     <Divider />
-
-                    {formType === 0 && (
-                        <>
-                            <Typography variant="subtitle1" fontWeight={600}>
-                                Dienstleistungsantrag
-                            </Typography>
-                            <TextField
-                                label="Leistungsbeschreibung"
-                                value={formCase.serviceDescription ?? ""}
-                                fullWidth
-                                multiline
-                                minRows={3}
-                                InputProps={{ readOnly: true }}
-                            />
-                            <TextField
-                                label="Begründung"
-                                value={formCase.justification ?? ""}
-                                fullWidth
-                                multiline
-                                minRows={2}
-                                InputProps={{ readOnly: true }}
-                            />
-                        </>
-                    )}
 
                     {formType === 1 && (
                         <>
@@ -255,25 +276,10 @@ export default function CaseDetailPage() {
                             </Stack>
                         </>
                     )}
-
-                    {formType === 2 && (
-                        <>
-                            <Typography variant="subtitle1" fontWeight={600}>
-                                Änderungsantrag
-                            </Typography>
-                            <TextField
-                                label="Änderungswunsch"
-                                value={formCase.changeRequest ?? ""}
-                                fullWidth
-                                multiline
-                                minRows={3}
-                                InputProps={{ readOnly: true }}
-                            />
-                        </>
-                    )}
                 </Stack>
             </Paper>
 
+            {/* ATTACHMENTS */}
             <Paper variant="outlined" sx={{ p: 2 }}>
                 <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>
                     Anhänge (PDF)
@@ -284,10 +290,15 @@ export default function CaseDetailPage() {
                 ) : (
                     <List>
                         {attachments.map((a) => (
-                            <ListItemButton key={a.id} onClick={() => openAttachmentInNewTab(a.id)}>
+                            <ListItemButton
+                                key={a.id}
+                                onClick={() => openAttachmentInNewTab(a.id)}
+                            >
                                 <ListItemText
                                     primary={a.fileName ?? `Attachment ${a.id}`}
-                                    secondary={`${a.sizeBytes ?? ""} bytes`}
+                                    secondary={
+                                        a.sizeBytes != null ? `${a.sizeBytes} bytes` : undefined
+                                    }
                                 />
                             </ListItemButton>
                         ))}

@@ -23,6 +23,7 @@ import RefreshIcon from "@mui/icons-material/Refresh";
 import AddIcon from "@mui/icons-material/Add";
 
 import { getCases } from "../api/formCaseApi";
+import { getAuthContext } from "../api/client";
 import StatusChip from "../components/StatusChip";
 
 function safeText(v) {
@@ -33,8 +34,6 @@ function matchesQuery(c, q) {
     if (!q) return true;
     const query = q.toLowerCase();
 
-    // Passe Felder an, je nachdem was dein Backend liefert:
-    // id, applicantName, subject, status, formType, departmentId, createdAt
     const haystack = [
         safeText(c.id),
         safeText(c.applicantName),
@@ -51,6 +50,12 @@ function matchesQuery(c, q) {
 
 export default function CaseListPage() {
     const navigate = useNavigate();
+
+    const auth = getAuthContext();
+    const role = auth?.role;
+
+    // Nur Erfasser dürfen neue Fälle anlegen
+    const canCreate = role === "Erfasser";
 
     const [rows, setRows] = React.useState([]);
     const [loading, setLoading] = React.useState(true);
@@ -99,19 +104,21 @@ export default function CaseListPage() {
                 <Stack direction="row" spacing={1} alignItems="center">
                     <Tooltip title="Neu laden">
             <span>
-              <IconButton onClick={load} disabled={loading} aria-label="reload">
+              <IconButton onClick={load} disabled={loading}>
                 <RefreshIcon />
               </IconButton>
             </span>
                     </Tooltip>
 
-                    <Button
-                        variant="contained"
-                        startIcon={<AddIcon />}
-                        onClick={() => navigate("/cases/new")}
-                    >
-                        Neuer Fall
-                    </Button>
+                    {canCreate && (
+                        <Button
+                            variant="contained"
+                            startIcon={<AddIcon />}
+                            onClick={() => navigate("/cases/new")}
+                        >
+                            Neuer Fall
+                        </Button>
+                    )}
                 </Stack>
             </Stack>
 
@@ -142,7 +149,7 @@ export default function CaseListPage() {
                     </Box>
                 ) : (
                     <TableContainer>
-                        <Table size="medium">
+                        <Table>
                             <TableHead>
                                 <TableRow>
                                     <TableCell width={90}>ID</TableCell>
@@ -160,7 +167,9 @@ export default function CaseListPage() {
                                         key={c.id}
                                         hover
                                         sx={{ cursor: "pointer" }}
-                                        onClick={() => window.open(`/cases/${c.id}`, "_blank", "noopener,noreferrer")}
+                                        onClick={() =>
+                                            window.open(`/cases/${c.id}`, "_blank", "noopener,noreferrer")
+                                        }
                                     >
                                         <TableCell>{c.id}</TableCell>
                                         <TableCell>{safeText(c.applicantName) || "-"}</TableCell>
