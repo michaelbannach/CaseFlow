@@ -8,6 +8,8 @@ public class FormCaseResponseDto
 
     public FormType FormType { get; set; }
     public ProcessingStatus Status { get; set; }
+    
+    public int? ProcessingEmployeeId { get; set; }
 
     public int DepartmentId { get; set; }
     public int CreatedByEmployeeId { get; set; }

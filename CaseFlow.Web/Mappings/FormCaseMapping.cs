@@ -43,6 +43,8 @@ public static class FormCaseMapping
 
             DepartmentId = entity.DepartmentId,
             CreatedByEmployeeId = entity.CreateByEmployeeId,
+            
+            ProcessingEmployeeId = entity.ProcessingEmployeeId,
 
             ApplicantName = entity.ApplicantName,
             ApplicantStreet = entity.ApplicantStreet,
