@@ -102,6 +102,16 @@ public class FormCaseConfiguration : IEntityTypeConfiguration<FormCase>
             .HasForeignKey(m => m.FormCaseId)
             .IsRequired()
             .OnDelete(DeleteBehavior.Cascade);
+        
+        builder.HasOne(x => x.CreateByEmployee)
+            .WithMany()
+            .HasForeignKey(x => x.CreateByEmployeeId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(x => x.ProcessingEmployee)
+            .WithMany()
+            .HasForeignKey(x => x.ProcessingEmployeeId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         // Indizes
         builder.HasIndex(fc => new { fc.DepartmentId, fc.Status });

@@ -49,7 +49,9 @@ public class FormCase
     public ICollection<PdfAttachment> Attachments { get; set; } = new List<PdfAttachment>();
     public ICollection<ClarificationMessage> ClarificationMessages { get; set; } = new List<ClarificationMessage>();
     
+    public int? ProcessingEmployeeId { get; set; }
     
+    public Employee? ProcessingEmployee { get; set; }
     
     
 }
