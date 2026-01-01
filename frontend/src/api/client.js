@@ -107,6 +107,33 @@ export async function apiGetBlob(url) {
     return res.blob();
 }
 
+export function getAuthContext() {
+    const token = localStorage.getItem("caseflow_token");
+    if (!token) return null;
+
+    try {
+        const payloadB64 = token.split(".")[1];
+        const payloadJson = atob(payloadB64.replace(/-/g, "+").replace(/_/g, "/"));
+        const payload = JSON.parse(payloadJson);
+
+        // employeeId ist bei dir im Token vorhanden (du siehst es schon im Storage-Text)
+        const employeeId = Number(payload.employeeId);
+
+        // role claim kann je nach Backend so oder so heißen:
+        const role =
+            payload.role ||
+            payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"];
+
+        return {
+            token,
+            employeeId: Number.isFinite(employeeId) ? employeeId : null,
+            role: role ?? null,
+        };
+    } catch {
+        return null;
+    }
+}
+
 // -------------------------
 // Convenience wrappers
 // -------------------------
