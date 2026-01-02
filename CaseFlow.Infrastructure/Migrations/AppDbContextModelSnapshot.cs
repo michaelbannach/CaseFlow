@@ -199,6 +199,9 @@ namespace CaseFlow.Infrastructure.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)");
 
+                    b.Property<int?>("ProcessingEmployeeId")
+                        .HasColumnType("int");
+
                     b.Property<string>("ServiceDescription")
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)");
@@ -218,6 +221,8 @@ namespace CaseFlow.Infrastructure.Migrations
                     b.HasIndex("CreatedAt");
 
                     b.HasIndex("FormType");
+
+                    b.HasIndex("ProcessingEmployeeId");
 
                     b.HasIndex("CreateByEmployeeId", "Status");
 
@@ -519,9 +524,15 @@ namespace CaseFlow.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("CaseFlow.Domain.Models.Employee", "ProcessingEmployee")
+                        .WithMany()
+                        .HasForeignKey("ProcessingEmployeeId");
+
                     b.Navigation("CreateByEmployee");
 
                     b.Navigation("Department");
+
+                    b.Navigation("ProcessingEmployee");
                 });
 
             modelBuilder.Entity("CaseFlow.Domain.Models.PdfAttachment", b =>
