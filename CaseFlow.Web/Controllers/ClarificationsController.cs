@@ -20,13 +20,29 @@ public class ClarificationsController : ControllerBase
     [ProducesResponseType(typeof(List<ClarificationResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(object), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(object), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<List<ClarificationResponseDto>>> GetByFormCase(int formCaseId)
     {
+        int actingEmployeeId;
         try
         {
-            var messages = await _service.GetByFormCaseAsync(formCaseId);
+            actingEmployeeId = User.GetEmployeeId();
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { error = ex.Message });
+        }
+
+        try
+        {
+            var messages = await _service.GetByFormCaseAsync(actingEmployeeId, formCaseId);
             var dtos = messages.Select(m => m.ToDto()).ToList();
             return Ok(dtos);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Forbid();
         }
         catch (KeyNotFoundException ex)
         {

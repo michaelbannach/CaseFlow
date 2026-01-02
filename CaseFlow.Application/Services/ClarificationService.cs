@@ -4,81 +4,113 @@ using CaseFlow.Domain.Models;
 
 namespace CaseFlow.Application.Services;
 
-public sealed class ClarificationService : IClarificationService
+public class ClarificationService : IClarificationService
 {
-    private readonly IClarificationMessageRepository _clarificationRepo;
-    private readonly IFormCaseRepository _formCaseRepo;
-    private readonly IEmployeeRepository _employeeRepo;
+    private readonly IClarificationMessageRepository _clarificationRepository;
+    private readonly IFormCaseRepository _formCaseRepository;
+    private readonly IEmployeeRepository _employeeRepository;
     private readonly ILogger<ClarificationService> _logger;
 
     public ClarificationService(
-        IClarificationMessageRepository clarificationRepo,
-        IFormCaseRepository formCaseRepo,
-        IEmployeeRepository employeeRepo,
+        IClarificationMessageRepository clarificationRepository,
+        IFormCaseRepository formCaseRepository,
+        IEmployeeRepository employeeRepository,
         ILogger<ClarificationService> logger)
     {
-        _clarificationRepo = clarificationRepo;
-        _formCaseRepo = formCaseRepo;
-        _employeeRepo = employeeRepo;
+        _clarificationRepository = clarificationRepository;
+        _formCaseRepository = formCaseRepository;
+        _employeeRepository = employeeRepository;
         _logger = logger;
     }
 
-    public async Task<List<ClarificationMessage>> GetByFormCaseAsync(int formCaseId)
+    public async Task<List<ClarificationMessage>> GetByFormCaseAsync(
+        int actingEmployeeId,
+        int formCaseId)
     {
+        if (actingEmployeeId <= 0)
+            throw new ArgumentException("Unknown employee");
+
         if (formCaseId <= 0)
             throw new ArgumentException("Invalid FormCaseId");
 
-        var formCaseExists = await _formCaseRepo.ExistsAsync(formCaseId);
-        if (!formCaseExists)
-            throw new KeyNotFoundException("FormCase not found");
+        var actor = await _employeeRepository.GetByIdAsync(actingEmployeeId)
+                    ?? throw new ArgumentException("Unknown employee");
 
-        return await _clarificationRepo.GetByFormCaseIdAsync(formCaseId);
+        var formCase = await _formCaseRepository.GetByIdAsync(formCaseId)
+                       ?? throw new KeyNotFoundException("FormCase not found");
+
+        // Sichtbarkeitsregeln
+        if (actor.Role == UserRole.Stammdaten)
+            return await _clarificationRepository.GetByFormCaseIdAsync(formCaseId);
+
+        if (actor.Role == UserRole.Erfasser)
+        {
+            if (formCase.CreateByEmployeeId != actor.Id)
+                throw new UnauthorizedAccessException("Not allowed");
+
+            return await _clarificationRepository.GetByFormCaseIdAsync(formCaseId);
+        }
+
+        if (actor.Role == UserRole.Sachbearbeiter)
+        {
+            if (formCase.DepartmentId != actor.DepartmentId)
+                throw new UnauthorizedAccessException("Not allowed");
+
+            return await _clarificationRepository.GetByFormCaseIdAsync(formCaseId);
+        }
+
+        throw new UnauthorizedAccessException("Not allowed");
     }
 
-    public async Task<(bool added, string? error, ClarificationMessage? created)> AddAsync(
-        int actingEmployeeId,
-        int formCaseId,
-        string messageText)
+    public async Task<(bool added, string? error, ClarificationMessage? created)>
+        AddAsync(int actingEmployeeId, int formCaseId, string message)
+
     {
-        if (actingEmployeeId <= 0) return (false, "Unknown employee", null);
-        if (formCaseId <= 0) return (false, "Invalid FormCaseId", null);
+        if (actingEmployeeId <= 0)
+            return (false, "Unknown employee", null);
 
-        var actor = await _employeeRepo.GetByIdAsync(actingEmployeeId);
-        if (actor is null) return (false, "Unknown employee", null);
+        if (formCaseId <= 0)
+            return (false, "Invalid FormCaseId", null);
 
-        if (actor.Role == UserRole.Stammdaten)
-            return (false, "Not allowed", null);
-
-        var formCase = await _formCaseRepo.GetByIdAsync(formCaseId);
-        if (formCase is null) return (false, "FormCase not found", null);
-
-        // Option A: Nur erlauben, wenn der Case bereits in Klärung ist.
-        if (formCase.Status != ProcessingStatus.InKlaerung)
-            return (false, "FormCase is not in clarification", null);
-
-        var msg = (messageText ?? string.Empty).Trim();
-        if (string.IsNullOrWhiteSpace(msg))
+        if (string.IsNullOrWhiteSpace(message))
             return (false, "Message is required", null);
 
-        if (msg.Length > 2000)
-            return (false, "Message is too long (max 2000 chars)", null);
+        var actor = await _employeeRepository.GetByIdAsync(actingEmployeeId);
+        if (actor is null)
+            return (false, "Unknown employee", null);
 
-        var entity = new ClarificationMessage
+       
+        if (actor.Role != UserRole.Sachbearbeiter)
+            return (false, "Not allowed", null);
+
+        var formCase = await _formCaseRepository.GetByIdAsync(formCaseId);
+        if (formCase is null)
+            return (false, "FormCase not found", null);
+
+        // Abteilung prüfen
+        if (formCase.DepartmentId != actor.DepartmentId)
+            return (false, "Not allowed", null);
+
+        // Nur im Status InKlaerung
+        if (formCase.Status != ProcessingStatus.InKlaerung)
+            return (false, "Not allowed", null);
+
+        var clarification = new ClarificationMessage
         {
-            FormCaseId = formCaseId,
+            FormCaseId = formCase.Id,
             CreatedByEmployeeId = actor.Id,
-            Message = msg,
+            Message = message.Trim(),
             CreatedAt = DateTimeOffset.UtcNow
         };
 
-        var ok = await _clarificationRepo.AddAsync(entity);
+        var ok = await _clarificationRepository.AddAsync(clarification);
         if (!ok)
         {
-            _logger.LogError("AddAsync: Error while saving clarification message. CaseId={CaseId}, ActorId={ActorId}",
-                formCaseId, actingEmployeeId);
+            _logger.LogError(
+                "AddClarification failed for FormCaseId {FormCaseId}", formCaseId);
             return (false, "Error while saving clarification message", null);
         }
 
-        return (true, null, entity);
+        return (true, null, clarification);
     }
 }
