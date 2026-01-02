@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 using CaseFlow.Domain.Enums;
 using CaseFlow.Infrastructure.Data;
@@ -14,10 +15,6 @@ public class ClarificationFlowTests : IClassFixture<CaseFlowWebApplicationFactor
 {
     private readonly CaseFlowWebApplicationFactory _factory;
     private readonly HttpClient _client;
-
-    // Seeded Sachbearbeiter from DevelopmentSeeder
-    private const string SeedSachbearbeiterEmail = "seed_admin@caseflow.local";
-    private const string SeedSachbearbeiterPassword = "Test123!";
 
     public ClarificationFlowTests(CaseFlowWebApplicationFactory factory)
     {
@@ -39,10 +36,18 @@ public class ClarificationFlowTests : IClassFixture<CaseFlowWebApplicationFactor
         var departmentId = await GetAnyDepartmentIdAsync();
         var formCaseId = await CreateKostenantragAsync(departmentId);
 
-        // Act: Sachbearbeiter moves case to InKlaerung via allowed transitions
-        var sachbearbeiterToken = await LoginAsync(SeedSachbearbeiterEmail, SeedSachbearbeiterPassword);
-        SetBearer(sachbearbeiterToken);
+        // IMPORTANT: attach at least one PDF before leaving Neu
+        await EnsureAtLeastOnePdfAsync(formCaseId);
 
+        // Arrange: create Sachbearbeiter in SAME department as the case
+        var sbEmail = NewShortEmail("sb");
+        const string sbPassword = "Test123!Test123!";
+        await RegisterAsync(sbEmail, sbPassword, role: "Sachbearbeiter", departmentId: departmentId);
+
+        var sbToken = await LoginAsync(sbEmail, sbPassword);
+        SetBearer(sbToken);
+
+        // Act: allowed transitions
         await SetStatusAsync(formCaseId, ProcessingStatus.InBearbeitung); // Neu -> InBearbeitung
         await SetStatusAsync(formCaseId, ProcessingStatus.InKlaerung);    // InBearbeitung -> InKlaerung
 
@@ -87,7 +92,6 @@ public class ClarificationFlowTests : IClassFixture<CaseFlowWebApplicationFactor
             $"/api/formcases/{formCaseId}/clarifications",
             new { Message = "Das sollte nicht gehen." });
 
-        // Assert (your service returns BadRequest for business-rule violation)
         Assert.Equal(HttpStatusCode.BadRequest, postResp.StatusCode);
     }
 
@@ -105,14 +109,21 @@ public class ClarificationFlowTests : IClassFixture<CaseFlowWebApplicationFactor
         var departmentId = await GetAnyDepartmentIdAsync();
         var formCaseId = await CreateKostenantragAsync(departmentId);
 
-        // Arrange: Sachbearbeiter sets case to InKlaerung (via allowed transitions)
-        var sachbearbeiterToken = await LoginAsync(SeedSachbearbeiterEmail, SeedSachbearbeiterPassword);
-        SetBearer(sachbearbeiterToken);
+        // IMPORTANT: attach at least one PDF before leaving Neu
+        await EnsureAtLeastOnePdfAsync(formCaseId);
+
+        // Arrange: create Sachbearbeiter in SAME department and move case to InKlaerung
+        var sbEmail = NewShortEmail("sb");
+        const string sbPassword = "Test123!Test123!";
+        await RegisterAsync(sbEmail, sbPassword, role: "Sachbearbeiter", departmentId: departmentId);
+
+        var sbToken = await LoginAsync(sbEmail, sbPassword);
+        SetBearer(sbToken);
 
         await SetStatusAsync(formCaseId, ProcessingStatus.InBearbeitung);
         await SetStatusAsync(formCaseId, ProcessingStatus.InKlaerung);
 
-        // Arrange: create Stammdaten user
+        // Arrange: create Stammdaten user (no department needed)
         var stammdatenEmail = NewShortEmail("s");
         const string stammdatenPassword = "Test123!Test123!";
         await RegisterAsync(stammdatenEmail, stammdatenPassword, role: "Stammdaten", departmentId: null);
@@ -125,8 +136,25 @@ public class ClarificationFlowTests : IClassFixture<CaseFlowWebApplicationFactor
             $"/api/formcases/{formCaseId}/clarifications",
             new { Message = "Ich darf das nicht." });
 
-        // Assert
         Assert.Equal(HttpStatusCode.BadRequest, postResp.StatusCode);
+    }
+
+    [Fact]
+    public async Task Get_Clarifications_For_NonExisting_FormCase_Returns_404()
+    {
+        // Arrange: create any authenticated user (Erfasser is enough)
+        var email = NewShortEmail("e");
+        const string password = "Test123!Test123!";
+        await RegisterAsync(email, password, role: "Erfasser", departmentId: null);
+
+        var token = await LoginAsync(email, password);
+        SetBearer(token);
+
+        // Act
+        var resp = await _client.GetAsync("/api/formcases/999999/clarifications");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.NotFound, resp.StatusCode);
     }
 
     // ---------------- Helpers ----------------
@@ -139,7 +167,6 @@ public class ClarificationFlowTests : IClassFixture<CaseFlowWebApplicationFactor
 
     private async Task RegisterAsync(string email, string password, string role, int? departmentId)
     {
-        // Hard guard: API validates Email max length 50
         if (email.Length > 50)
             email = email[..50];
 
@@ -217,6 +244,29 @@ public class ClarificationFlowTests : IClassFixture<CaseFlowWebApplicationFactor
         return id;
     }
 
+    private async Task EnsureAtLeastOnePdfAsync(int formCaseId)
+    {
+        // Minimal PDF content; enough to satisfy "at least one attachment exists"
+        var pdfBytes = Encoding.UTF8.GetBytes("%PDF-1.4\n%âãÏÓ\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF");
+
+        using var content = new MultipartFormDataContent();
+
+        var fileContent = new ByteArrayContent(pdfBytes);
+        fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/pdf");
+
+        // Name "file" must match your AttachmentsController parameter name.
+        content.Add(fileContent, "file", "test.pdf");
+
+        var resp = await _client.PostAsync($"/api/formcases/{formCaseId}/attachments", content);
+
+        if (resp.StatusCode != HttpStatusCode.Created &&
+            resp.StatusCode != HttpStatusCode.OK &&
+            resp.StatusCode != HttpStatusCode.NoContent)
+        {
+            throw await BuildHttpFailureExceptionAsync("Upload attachment failed", resp);
+        }
+    }
+
     private async Task SetStatusAsync(int formCaseId, ProcessingStatus newStatus)
     {
         var patchResp = await _client.PatchAsJsonAsync(
@@ -265,16 +315,4 @@ public class ClarificationFlowTests : IClassFixture<CaseFlowWebApplicationFactor
             $"Body: {body}"
         );
     }
-    
-    [Fact]
-    public async Task Get_Clarifications_For_NonExisting_FormCase_Returns_404()
-    {
-        var token = await LoginAsync("seed_admin@caseflow.local", "Test123!");
-        SetBearer(token);
-
-        var resp = await _client.GetAsync("/api/formcases/999999/clarifications");
-
-        Assert.Equal(HttpStatusCode.NotFound, resp.StatusCode);
-    }
-
 }
