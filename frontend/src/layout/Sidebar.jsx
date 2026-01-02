@@ -11,6 +11,7 @@ import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
 import FolderOpenOutlinedIcon from "@mui/icons-material/FolderOpenOutlined";
 import AddCircleOutlineOutlinedIcon from "@mui/icons-material/AddCircleOutlineOutlined";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
+import LogoutOutlinedIcon from "@mui/icons-material/LogoutOutlined";
 
 import { getAuthContext } from "../api/client";
 
@@ -27,6 +28,11 @@ export default function Sidebar({
 
     // Nur Erfasser dürfen neue Fälle anlegen
     const canCreate = role === "Erfasser";
+
+    function handleLogout() {
+        localStorage.removeItem("caseflow_token");
+        window.location.href = "/login";
+    }
 
     const items = [
         { label: "Dashboard", path: "/", icon: <HomeOutlinedIcon /> },
@@ -47,9 +53,11 @@ export default function Sidebar({
     ];
 
     const drawerContent = (
-        <div>
+        <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
             <Toolbar />
             <Divider />
+
+            {/* Main navigation */}
             <List>
                 {items.map((it) => (
                     <ListItemButton
@@ -68,6 +76,7 @@ export default function Sidebar({
 
             <Divider />
 
+            {/* Secondary navigation */}
             <List>
                 {secondary.map((it) => (
                     <ListItemButton
@@ -82,6 +91,21 @@ export default function Sidebar({
                         <ListItemText primary={it.label} />
                     </ListItemButton>
                 ))}
+            </List>
+
+            {/* Push logout to bottom */}
+            <Divider sx={{ mt: "auto" }} />
+
+            <List>
+                <ListItemButton
+                    onClick={handleLogout}
+                    sx={{ color: "error.main" }}
+                >
+                    <ListItemIcon sx={{ color: "error.main" }}>
+                        <LogoutOutlinedIcon />
+                    </ListItemIcon>
+                    <ListItemText primary="Logout" />
+                </ListItemButton>
             </List>
         </div>
     );
