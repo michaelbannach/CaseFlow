@@ -262,12 +262,31 @@ public class FormCaseService : IFormCaseService
         if (actor.Role == UserRole.Stammdaten)
             return (false, "Not allowed");
 
-        if (actor.Role != UserRole.Sachbearbeiter)
-            return (false, "Not allowed");
-
         var existing = await _formCaseRepository.GetByIdAsync(formCaseId);
         if (existing is null)
             return (false, "FormCase not found");
+
+        //  Erfasser: nur eigener Fall + nur wenn InKlaerung
+        if (actor.Role == UserRole.Erfasser)
+        {
+            var isOwner = existing.CreateByEmployeeId == actor.Id;
+            if (!isOwner)
+                return (false, "Not allowed");
+
+            if (existing.Status != ProcessingStatus.InKlaerung)
+                return (false, "Not allowed");
+        }
+        //  Sachbearbeiter: wie bisher erlaubt (einfach gehalten)
+        else if (actor.Role == UserRole.Sachbearbeiter)
+        {
+            // optional (wenn du willst): nur eigene Abteilung
+            // if (existing.DepartmentId != actor.DepartmentId)
+            //     return (false, "Not allowed");
+        }
+        else
+        {
+            return (false, "Not allowed");
+        }
 
         var deleted = await _formCaseRepository.DeleteByIdAsync(formCaseId);
         if (!deleted)

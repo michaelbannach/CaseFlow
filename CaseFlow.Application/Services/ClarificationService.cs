@@ -91,8 +91,8 @@ public class ClarificationService : IClarificationService
         if (formCase.DepartmentId != actor.DepartmentId)
             return (false, "Not allowed", null);
 
-        // Nur im Status InKlaerung
-        if (formCase.Status != ProcessingStatus.InKlaerung)
+        // Nur im Status InBearbeitung
+        if (formCase.Status != ProcessingStatus.InBearbeitung)
             return (false, "Not allowed", null);
 
         var clarification = new ClarificationMessage
