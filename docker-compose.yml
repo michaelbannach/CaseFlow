@@ -1,0 +1,36 @@
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: caseflow-db
+    environment:
+      ACCEPT_EULA: "Y"
+      SA_PASSWORD: "${SA_PASSWORD}"
+    ports:
+      - "1433:1433"
+    volumes:
+      - caseflow_db_data:/var/opt/mssql
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: caseflow-api
+    depends_on:
+      - db
+    environment:
+      ASPNETCORE_ENVIRONMENT: "Development"
+
+      # Wichtig: Server=db (Containername), nicht localhost
+      ConnectionStrings__DefaultConnection: "Server=db,1433;Database=CaseFlowDb;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;"
+
+      # JWT key muss gesetzt sein, sonst startet deine API absichtlich nicht
+      Jwt__Key: "${JWT_KEY}"
+      Jwt__Issuer: "caseflow"
+      Jwt__Audience: "caseflow"
+    ports:
+      - "5180:8080"
+    restart: unless-stopped
+
+volumes:
+  caseflow_db_data:
