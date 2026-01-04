@@ -7,13 +7,8 @@ import ListItemText from "@mui/material/ListItemText";
 import Toolbar from "@mui/material/Toolbar";
 import Divider from "@mui/material/Divider";
 
-import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
 import FolderOpenOutlinedIcon from "@mui/icons-material/FolderOpenOutlined";
-import AddCircleOutlineOutlinedIcon from "@mui/icons-material/AddCircleOutlineOutlined";
-import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import LogoutOutlinedIcon from "@mui/icons-material/LogoutOutlined";
-
-import { getAuthContext } from "../api/client";
 
 const drawerWidth = 280;
 
@@ -23,34 +18,10 @@ export default function Sidebar({
                                     onNavigate,
                                     currentPath,
                                 }) {
-    const auth = getAuthContext();
-    const role = auth?.role;
-
-    // Nur Erfasser dürfen neue Fälle anlegen
-    const canCreate = role === "Erfasser";
-
     function handleLogout() {
         localStorage.removeItem("caseflow_token");
         window.location.href = "/login";
     }
-
-    const items = [
-        { label: "Dashboard", path: "/", icon: <HomeOutlinedIcon /> },
-        { label: "Fälle", path: "/cases", icon: <FolderOpenOutlinedIcon /> },
-        ...(canCreate
-            ? [
-                {
-                    label: "Neuer Fall",
-                    path: "/cases/new",
-                    icon: <AddCircleOutlineOutlinedIcon />,
-                },
-            ]
-            : []),
-    ];
-
-    const secondary = [
-        { label: "Einstellungen", path: "/settings", icon: <SettingsOutlinedIcon /> },
-    ];
 
     const drawerContent = (
         <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
@@ -59,38 +30,18 @@ export default function Sidebar({
 
             {/* Main navigation */}
             <List>
-                {items.map((it) => (
-                    <ListItemButton
-                        key={it.path}
-                        selected={currentPath === it.path}
-                        onClick={() => {
-                            onNavigate(it.path);
-                            onCloseMobile?.();
-                        }}
-                    >
-                        <ListItemIcon>{it.icon}</ListItemIcon>
-                        <ListItemText primary={it.label} />
-                    </ListItemButton>
-                ))}
-            </List>
-
-            <Divider />
-
-            {/* Secondary navigation */}
-            <List>
-                {secondary.map((it) => (
-                    <ListItemButton
-                        key={it.path}
-                        selected={currentPath === it.path}
-                        onClick={() => {
-                            onNavigate(it.path);
-                            onCloseMobile?.();
-                        }}
-                    >
-                        <ListItemIcon>{it.icon}</ListItemIcon>
-                        <ListItemText primary={it.label} />
-                    </ListItemButton>
-                ))}
+                <ListItemButton
+                    selected={currentPath === "/cases"}
+                    onClick={() => {
+                        onNavigate("/cases");
+                        onCloseMobile?.();
+                    }}
+                >
+                    <ListItemIcon>
+                        <FolderOpenOutlinedIcon />
+                    </ListItemIcon>
+                    <ListItemText primary="Fälle" />
+                </ListItemButton>
             </List>
 
             {/* Push logout to bottom */}

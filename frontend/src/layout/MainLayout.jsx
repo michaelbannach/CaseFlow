@@ -23,19 +23,23 @@ export default function MainLayout() {
         <Box sx={{ display: "flex", minHeight: "100vh" }}>
             <CssBaseline />
 
+            {/* AppBar: full width, sits above drawer */}
             <AppBar
                 position="fixed"
+                color="primary"
                 sx={{
-                    width: { md: `calc(100% - ${drawerWidth}px)` },
-                    ml: { md: `${drawerWidth}px` },
+                    width: "100%",
+                    left: 0,
+                    right: 0,
+                    zIndex: (theme) => theme.zIndex.drawer + 1,
                 }}
             >
-                <Toolbar>
+                <Toolbar sx={{ px: 2 }}>
                     <IconButton
                         color="inherit"
                         edge="start"
                         onClick={handleDrawerToggle}
-                        sx={{ mr: 2, display: { md: "none" } }}
+                        sx={{ mr: 1, display: { md: "none" } }}
                         aria-label="open sidebar"
                     >
                         <MenuIcon />
@@ -54,6 +58,7 @@ export default function MainLayout() {
                 currentPath={location.pathname}
             />
 
+            {/* Main content next to drawer on desktop, centered + max width */}
             <Box
                 component="main"
                 sx={{
@@ -61,11 +66,27 @@ export default function MainLayout() {
                     p: 2,
                     width: { md: `calc(100% - ${drawerWidth}px)` },
                     ml: { md: `${drawerWidth}px` },
+
+                    // Center content on wide screens
+                    display: "flex",
+                    justifyContent: "center",
                 }}
             >
-                {/* Abstand unter AppBar */}
-                <Toolbar />
-                <Outlet />
+                {/* Wrapper keeps full width and adds AppBar spacer */}
+                <Box sx={{ width: "100%" }}>
+                    <Toolbar />
+
+                    {/* Content wrapper: compact layout */}
+                    <Box
+                        sx={{
+                            width: "100%",
+                            maxWidth: 1200,
+                            mx: "auto",
+                        }}
+                    >
+                        <Outlet />
+                    </Box>
+                </Box>
             </Box>
         </Box>
     );

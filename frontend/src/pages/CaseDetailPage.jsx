@@ -167,7 +167,7 @@ export default function CaseDetailPage() {
         loadAll();
     }, [loadAll]);
 
-    // ✅ Status kommt bei dir als STRING: "Neu" | "InBearbeitung" | "InKlaerung" | "Erledigt"
+    // Status as STRING: "Neu" | "InBearbeitung" | "InKlaerung" | "Erledigt"
     const status = caseData?.status;
 
     const ownerEmployeeId = getOwnerEmployeeIdFromCase(caseData);
@@ -177,15 +177,15 @@ export default function CaseDetailPage() {
         ownerEmployeeId != null &&
         Number(employeeId) === Number(ownerEmployeeId);
 
-    // Sachbearbeiter: Bearbeiten sichtbar bei Neu oder InBearbeitung
+    // Sachbearbeiter: Bearbeiten when Status is Neu or InBearbeitung
     const canSachbearbeiterStart =
         isSachbearbeiter && (status === "Neu" || status === "InBearbeitung");
 
-    // Sachbearbeiter Aktionen nur bei InBearbeitung
+    // Sachbearbeiter Action only when InBearbeitung
     const canSachbearbeiterActions =
         isSachbearbeiter && status === "InBearbeitung";
 
-    // Erfasser: nur bei InKlaerung UND nur Owner
+    // Erfasser: only when InKlaerung and is Owner
     const canErfasserStart =
         isErfasser && status === "InKlaerung" && isOwner;
 
@@ -193,7 +193,7 @@ export default function CaseDetailPage() {
         setBusy(true);
         setError(null);
         try {
-            await updateCaseStatus(id, newStatus); // ✅ STRING
+            await updateCaseStatus(id, newStatus); 
             await loadAll();
         } catch (e) {
             setError(e?.message ?? "Statusänderung fehlgeschlagen");
@@ -203,7 +203,7 @@ export default function CaseDetailPage() {
     };
 
     const onStartEdit = async () => {
-        // Sachbearbeiter: Neu -> InBearbeitung, dann Edit Mode
+        // Sachbearbeiter: Neu -> InBearbeitung, then Edit Mode
         if (isSachbearbeiter && status === "Neu") {
             await setStatus("InBearbeitung");
         }
@@ -218,10 +218,10 @@ export default function CaseDetailPage() {
         setError(null);
 
         try {
-            // 1) Clarification anlegen (Sachbearbeiter)
+            // 1) Add Clarification (Sachbearbeiter)
             await addClarification(id, msg);
 
-            // 2) Status setzen
+            // 2) Set Status
             await updateCaseStatus(id, "InKlaerung");
 
             setClarifyText("");
@@ -339,11 +339,6 @@ export default function CaseDetailPage() {
                         </Button>
                     </Stack>
                 </Stack>
-
-                {/* Debug-Info (kannst du später entfernen) */}
-                <Typography variant="caption" color="text.secondary">
-                    roles={JSON.stringify(roles)} employeeId={String(employeeId)} ownerEmployeeId={String(ownerEmployeeId)} isOwner={String(isOwner)} status={String(status)}
-                </Typography>
             </Paper>
 
             <Dialog
