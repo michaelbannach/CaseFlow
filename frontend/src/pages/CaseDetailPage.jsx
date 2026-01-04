@@ -1,5 +1,6 @@
 import React from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
+
 import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
 import Divider from "@mui/material/Divider";
@@ -11,9 +12,17 @@ import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import ListItemText from "@mui/material/ListItemText";
 
+import Dialog from "@mui/material/Dialog";
+import DialogTitle from "@mui/material/DialogTitle";
+import DialogContent from "@mui/material/DialogContent";
+import DialogActions from "@mui/material/DialogActions";
+
 import { getCaseById, updateCaseStatus } from "../api/formCaseApi";
 import { getAttachments, openAttachmentInNewTab } from "../api/attachmentApi";
 import { getClarifications, addClarification } from "../api/clarificationApi";
+
+const TOKEN_KEY = "caseflow_token";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5180";
 
 function decodeJwtPayload(token) {
     try {
@@ -25,16 +34,100 @@ function decodeJwtPayload(token) {
     }
 }
 
-function getRoleFromToken() {
-    const token = localStorage.getItem("caseflow_token");
-    if (!token) return null;
+function normalizeToStringArray(value) {
+    if (value == null) return [];
+    if (Array.isArray(value)) return value.map(String).filter(Boolean);
+    return [String(value)].filter(Boolean);
+}
+
+function getRolesFromToken() {
+    const token = localStorage.getItem(TOKEN_KEY);
+    if (!token) return [];
+
     const payload = decodeJwtPayload(token);
-    // je nachdem wie du claims setzt – häufig "role" oder standard claim
-    return payload?.role ?? payload?.["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] ?? null;
+    if (!payload) return [];
+
+    const roleUri = "http://schemas.microsoft.com/ws/2008/06/identity/claims/role";
+
+    const roles = [
+        ...normalizeToStringArray(payload.role),
+        ...normalizeToStringArray(payload.roles),
+        ...normalizeToStringArray(payload[roleUri]),
+    ];
+
+    return Array.from(new Set(roles));
+}
+
+function getEmployeeIdFromToken() {
+    const token = localStorage.getItem(TOKEN_KEY);
+    if (!token) return null;
+
+    const payload = decodeJwtPayload(token);
+    if (!payload) return null;
+
+    const raw =
+        payload.employeeId ??
+        payload.EmployeeId ??
+        payload["employeeId"] ??
+        payload["EmployeeId"] ??
+        payload["EmployeeID"] ??
+        null;
+
+    if (raw == null) return null;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : null;
+}
+
+function getOwnerEmployeeIdFromCase(caseData) {
+    if (!caseData) return null;
+
+    const raw =
+        caseData.createByEmployeeId ??
+        caseData.createdByEmployeeId ??
+        caseData.createByEmployeeID ??
+        caseData.createdByEmployeeID ??
+        caseData.createdByEmployee?.id ??
+        caseData.createByEmployee?.id ??
+        caseData.createByEmployee?.employeeId ??
+        null;
+
+    if (raw == null) return null;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : null;
+}
+
+async function deleteFormCase(id) {
+    const token = localStorage.getItem(TOKEN_KEY);
+
+    const res = await fetch(`${API_BASE_URL}/api/formcases/${id}`, {
+        method: "DELETE",
+        headers: {
+            Authorization: token ? `Bearer ${token}` : undefined,
+        },
+    });
+
+    if (!res.ok) {
+        let message = "Delete failed";
+        try {
+            const body = await res.json();
+            message = body?.error ?? body?.message ?? JSON.stringify(body);
+        } catch {
+            try {
+                const text = await res.text();
+                if (text) message = text;
+            } catch {
+                /* ignore */
+            }
+        }
+        throw new Error(message);
+    }
+
+    return null;
 }
 
 export default function CaseDetailPage() {
     const { id } = useParams();
+    const navigate = useNavigate();
 
     const [caseData, setCaseData] = React.useState(null);
     const [attachments, setAttachments] = React.useState([]);
@@ -43,8 +136,16 @@ export default function CaseDetailPage() {
     const [busy, setBusy] = React.useState(false);
     const [error, setError] = React.useState(null);
 
-    const [msg, setMsg] = React.useState("");
-    const role = getRoleFromToken();
+    const [editMode, setEditMode] = React.useState(false);
+
+    const [clarifyOpen, setClarifyOpen] = React.useState(false);
+    const [clarifyText, setClarifyText] = React.useState("");
+
+    const roles = getRolesFromToken();
+    const employeeId = getEmployeeIdFromToken();
+
+    const isSachbearbeiter = roles.includes("Sachbearbeiter");
+    const isErfasser = roles.includes("Erfasser");
 
     const loadAll = React.useCallback(async () => {
         setError(null);
@@ -66,37 +167,83 @@ export default function CaseDetailPage() {
         loadAll();
     }, [loadAll]);
 
-    const status = caseData?.status; // z.B. "Neu" | "InBearbeitung" | "InKlaerung" | "Erledigt"
+    // ✅ Status kommt bei dir als STRING: "Neu" | "InBearbeitung" | "InKlaerung" | "Erledigt"
+    const status = caseData?.status;
 
-    const canWriteClarification =
-        status === "InKlaerung" &&
-        role !== "Stammdaten"; // minimal: Stammdaten nur lesen
+    const ownerEmployeeId = getOwnerEmployeeIdFromCase(caseData);
 
-    const onSendClarification = async () => {
-        const trimmed = msg.trim();
-        if (!trimmed) return;
+    const isOwner =
+        employeeId != null &&
+        ownerEmployeeId != null &&
+        Number(employeeId) === Number(ownerEmployeeId);
 
-        setBusy(true);
-        setError(null);
-        try {
-            await addClarification(id, trimmed);
-            setMsg("");
-            await loadAll();
-        } catch (e) {
-            setError(e?.message ?? "Fehler beim Senden");
-        } finally {
-            setBusy(false);
-        }
-    };
+    // Sachbearbeiter: Bearbeiten sichtbar bei Neu oder InBearbeitung
+    const canSachbearbeiterStart =
+        isSachbearbeiter && (status === "Neu" || status === "InBearbeitung");
+
+    // Sachbearbeiter Aktionen nur bei InBearbeitung
+    const canSachbearbeiterActions =
+        isSachbearbeiter && status === "InBearbeitung";
+
+    // Erfasser: nur bei InKlaerung UND nur Owner
+    const canErfasserStart =
+        isErfasser && status === "InKlaerung" && isOwner;
 
     const setStatus = async (newStatus) => {
         setBusy(true);
         setError(null);
         try {
-            await updateCaseStatus(id, newStatus);
+            await updateCaseStatus(id, newStatus); // ✅ STRING
             await loadAll();
         } catch (e) {
             setError(e?.message ?? "Statusänderung fehlgeschlagen");
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const onStartEdit = async () => {
+        // Sachbearbeiter: Neu -> InBearbeitung, dann Edit Mode
+        if (isSachbearbeiter && status === "Neu") {
+            await setStatus("InBearbeitung");
+        }
+        setEditMode(true);
+    };
+
+    const onConfirmInKlaerung = async () => {
+        const msg = clarifyText.trim();
+        if (!msg) return;
+
+        setBusy(true);
+        setError(null);
+
+        try {
+            // 1) Clarification anlegen (Sachbearbeiter)
+            await addClarification(id, msg);
+
+            // 2) Status setzen
+            await updateCaseStatus(id, "InKlaerung");
+
+            setClarifyText("");
+            setClarifyOpen(false);
+            setEditMode(false);
+
+            await loadAll();
+        } catch (e) {
+            setError(e?.message ?? "In Klärung fehlgeschlagen");
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const onDelete = async () => {
+        setBusy(true);
+        setError(null);
+        try {
+            await deleteFormCase(id);
+            navigate("/", { replace: true });
+        } catch (e) {
+            setError(e?.message ?? "Löschen fehlgeschlagen");
         } finally {
             setBusy(false);
         }
@@ -117,35 +264,121 @@ export default function CaseDetailPage() {
 
             {error && <Alert severity="error">{error}</Alert>}
 
-            {/* Status/Actions */}
             <Paper sx={{ p: 2 }}>
-                <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between">
+                <Stack
+                    direction="row"
+                    spacing={2}
+                    alignItems="center"
+                    justifyContent="space-between"
+                >
                     <Typography>
-                        Status: <b>{status}</b>
+                        Status: <b>{String(status)}</b>
                     </Typography>
 
                     <Stack direction="row" spacing={1}>
-                        {/* Minimal: Buttons nur wenn du sie schon vorher hattest.
-                Deine eigentliche Bearbeiten-Logik (Edit Mode) bleibt unverändert.
-                Hier nur die Status-Buttons: */}
-                        {status === "InBearbeitung" && (
+                        {!editMode && (canSachbearbeiterStart || canErfasserStart) && (
+                            <Button variant="outlined" disabled={busy} onClick={onStartEdit}>
+                                Bearbeiten
+                            </Button>
+                        )}
+
+                        {editMode && canSachbearbeiterActions && (
                             <>
-                                <Button disabled={busy} variant="outlined" onClick={() => setStatus("InKlaerung")}>
+                                <Button
+                                    disabled={busy}
+                                    variant="outlined"
+                                    onClick={() => setClarifyOpen(true)}
+                                >
                                     In Klärung
                                 </Button>
-                                <Button disabled={busy} variant="contained" onClick={() => setStatus("Erledigt")}>
+
+                                <Button
+                                    disabled={busy}
+                                    variant="contained"
+                                    onClick={async () => {
+                                        await setStatus("Erledigt");
+                                        setEditMode(false);
+                                    }}
+                                >
                                     Abschließen
                                 </Button>
                             </>
                         )}
+
+                        {editMode && canErfasserStart && (
+                            <>
+                                <Button disabled={busy} variant="outlined" onClick={onDelete}>
+                                    Löschen
+                                </Button>
+
+                                <Button
+                                    disabled={busy}
+                                    variant="contained"
+                                    onClick={async () => {
+                                        await setStatus("Neu");
+                                        setEditMode(false);
+                                    }}
+                                >
+                                    Erneut senden
+                                </Button>
+                            </>
+                        )}
+
+                        {editMode && (
+                            <Button
+                                variant="text"
+                                disabled={busy}
+                                onClick={() => setEditMode(false)}
+                            >
+                                Abbrechen
+                            </Button>
+                        )}
+
                         <Button disabled={busy} variant="text" onClick={() => window.close()}>
                             Schließen
                         </Button>
                     </Stack>
                 </Stack>
+
+                {/* Debug-Info (kannst du später entfernen) */}
+                <Typography variant="caption" color="text.secondary">
+                    roles={JSON.stringify(roles)} employeeId={String(employeeId)} ownerEmployeeId={String(ownerEmployeeId)} isOwner={String(isOwner)} status={String(status)}
+                </Typography>
             </Paper>
 
-            {/* Form Details (du hast das Layout schon – hier minimal) */}
+            <Dialog
+                open={clarifyOpen}
+                onClose={() => (busy ? null : setClarifyOpen(false))}
+                fullWidth
+                maxWidth="sm"
+            >
+                <DialogTitle>In Klärung setzen</DialogTitle>
+                <DialogContent>
+                    <TextField
+                        label="Klärungsnachricht (Pflicht)"
+                        value={clarifyText}
+                        onChange={(e) => setClarifyText(e.target.value)}
+                        multiline
+                        minRows={3}
+                        fullWidth
+                        sx={{ mt: 1 }}
+                        disabled={busy}
+                    />
+                </DialogContent>
+                <DialogActions>
+                    <Button disabled={busy} onClick={() => setClarifyOpen(false)}>
+                        Abbrechen
+                    </Button>
+                    <Button
+                        variant="contained"
+                        disabled={busy || clarifyText.trim().length === 0}
+                        onClick={onConfirmInKlaerung}
+                    >
+                        Senden & In Klärung
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
             <Paper sx={{ p: 2 }}>
                 <Typography variant="h6">Antragsteller</Typography>
                 <Divider sx={{ my: 1 }} />
@@ -164,7 +397,6 @@ export default function CaseDetailPage() {
                 <Typography>Notizen: {caseData.notes ?? "-"}</Typography>
             </Paper>
 
-            {/* Attachments */}
             <Paper sx={{ p: 2 }}>
                 <Typography variant="h6">Anhänge (PDF)</Typography>
                 <Divider sx={{ my: 1 }} />
@@ -179,6 +411,7 @@ export default function CaseDetailPage() {
                             </Button>
                         </ListItem>
                     ))}
+
                     {attachments.length === 0 && (
                         <Typography variant="body2" color="text.secondary">
                             Keine Anhänge vorhanden
@@ -187,7 +420,6 @@ export default function CaseDetailPage() {
                 </List>
             </Paper>
 
-            {/* Clarifications */}
             <Paper sx={{ p: 2 }}>
                 <Typography variant="h6">Klärungsnachrichten</Typography>
                 <Divider sx={{ my: 1 }} />
@@ -197,9 +429,7 @@ export default function CaseDetailPage() {
                         <ListItem key={c.id} alignItems="flex-start">
                             <ListItemText
                                 primary={c.message}
-                                secondary={
-                                    `Erstellt am ${new Date(c.createdAt).toLocaleString()} • Mitarbeiter #${c.createdByEmployeeId}`
-                                }
+                                secondary={`Erstellt am ${new Date(c.createdAt).toLocaleString()} • Mitarbeiter #${c.createdByEmployeeId}`}
                             />
                         </ListItem>
                     ))}
@@ -211,36 +441,9 @@ export default function CaseDetailPage() {
                     )}
                 </List>
 
-
-                {canWriteClarification && (
-                    <>
-                        <Divider sx={{ my: 2 }} />
-                        <Stack spacing={1}>
-                            <TextField
-                                label="Nachricht"
-                                value={msg}
-                                onChange={(e) => setMsg(e.target.value)}
-                                multiline
-                                minRows={3}
-                            />
-                            <Stack direction="row" spacing={1} justifyContent="flex-end">
-                                <Button
-                                    variant="contained"
-                                    disabled={busy || msg.trim().length === 0}
-                                    onClick={onSendClarification}
-                                >
-                                    Senden
-                                </Button>
-                            </Stack>
-                        </Stack>
-                    </>
-                )}
-
-                {!canWriteClarification && status !== "InKlaerung" && (
-                    <Typography variant="body2" color="text.secondary">
-                        Nachrichten können nur im Status <b>In Klärung</b> hinzugefügt werden.
-                    </Typography>
-                )}
+                <Typography variant="body2" color="text.secondary">
+                    Klärungsnachrichten sind nur zur Information und können nicht beantwortet werden.
+                </Typography>
             </Paper>
         </Stack>
     );

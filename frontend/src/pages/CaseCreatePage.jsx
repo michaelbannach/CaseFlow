@@ -139,7 +139,7 @@ export default function CaseCreatePage() {
     const [departments, setDepartments] = useState([]);
     const [deptLoading, setDeptLoading] = React.useState(false);
     const [pdfFile, setPdfFile] = React.useState(null);
-    
+
     function setField(name, value) {
         setState((prev) => ({ ...prev, [name]: value }));
     }
@@ -173,10 +173,10 @@ export default function CaseCreatePage() {
         try {
             const payload = buildPayload(state);
             const created = await createCase(payload);
-            
+
             await uploadAttachment(created.id, pdfFile);
 
-          
+
             // Falls API das neue Objekt inkl. id zurückgibt:
             if (created?.id) {
                 navigate(`/cases/${created.id}`);
@@ -401,7 +401,7 @@ export default function CaseCreatePage() {
                                     minRows={4}
                                     fullWidth
                                 />
-                                
+
                             </>
                         )}
 
