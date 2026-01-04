@@ -23,7 +23,7 @@ public class ClarificationFlowTests : IClassFixture<CaseFlowWebApplicationFactor
     }
 
     [Fact]
-    public async Task Sachbearbeiter_Can_Add_Clarification_When_Case_Is_InKlaerung_And_Get_Returns_Message()
+    public async Task Sachbearbeiter_Can_Add_Clarification_When_Case_Is_InBearbeitung_And_Get_Returns_Message()
     {
         // Arrange: Erfasser creates case
         var erfasserEmail = NewShortEmail("e");
@@ -47,14 +47,16 @@ public class ClarificationFlowTests : IClassFixture<CaseFlowWebApplicationFactor
         var sbToken = await LoginAsync(sbEmail, sbPassword);
         SetBearer(sbToken);
 
-        // Act: allowed transitions
-        await SetStatusAsync(formCaseId, ProcessingStatus.InBearbeitung); // Neu -> InBearbeitung
-        await SetStatusAsync(formCaseId, ProcessingStatus.InKlaerung);    // InBearbeitung -> InKlaerung
+        // Act: allowed transition Neu -> InBearbeitung
+        await SetStatusAsync(formCaseId, ProcessingStatus.InBearbeitung);
 
-        // Act: create clarification
+        // Act: create clarification (NEW RULE: only allowed in InBearbeitung)
         const string message = "Bitte fehlende Unterlagen nachreichen.";
         var clarificationId = await CreateClarificationAsync(formCaseId, message);
         Assert.True(clarificationId > 0);
+
+        // Optional but realistic: after adding clarification, set case to InKlaerung
+        await SetStatusAsync(formCaseId, ProcessingStatus.InKlaerung);
 
         // Act: GET clarifications
         var getResp = await _client.GetAsync($"/api/formcases/{formCaseId}/clarifications");
@@ -74,7 +76,7 @@ public class ClarificationFlowTests : IClassFixture<CaseFlowWebApplicationFactor
     }
 
     [Fact]
-    public async Task Create_Clarification_When_Case_Not_InKlaerung_Returns_400()
+    public async Task Create_Clarification_When_Case_Not_InBearbeitung_Returns_400()
     {
         // Arrange: Erfasser creates case (Status remains Neu)
         var erfasserEmail = NewShortEmail("e");
@@ -87,12 +89,33 @@ public class ClarificationFlowTests : IClassFixture<CaseFlowWebApplicationFactor
         var departmentId = await GetAnyDepartmentIdAsync();
         var formCaseId = await CreateKostenantragAsync(departmentId);
 
-        // Act: try to add clarification while case is still Neu
-        var postResp = await _client.PostAsJsonAsync(
-            $"/api/formcases/{formCaseId}/clarifications",
-            new { Message = "Das sollte nicht gehen." });
+        // IMPORTANT: attach at least one PDF before leaving Neu
+        await EnsureAtLeastOnePdfAsync(formCaseId);
 
-        Assert.Equal(HttpStatusCode.BadRequest, postResp.StatusCode);
+        // Arrange: create Sachbearbeiter in SAME department as the case
+        var sbEmail = NewShortEmail("sb");
+        const string sbPassword = "Test123!Test123!";
+        await RegisterAsync(sbEmail, sbPassword, role: "Sachbearbeiter", departmentId: departmentId);
+
+        var sbToken = await LoginAsync(sbEmail, sbPassword);
+        SetBearer(sbToken);
+
+        // Act 1: try to add clarification while case is still Neu -> must fail
+        var postRespNeu = await _client.PostAsJsonAsync(
+            $"/api/formcases/{formCaseId}/clarifications",
+            new { Message = "Das sollte nicht gehen (Neu)." });
+
+        Assert.Equal(HttpStatusCode.BadRequest, postRespNeu.StatusCode);
+
+        // Act 2 (optional but useful): move to InKlaerung and try again -> must fail
+        await SetStatusAsync(formCaseId, ProcessingStatus.InBearbeitung);
+        await SetStatusAsync(formCaseId, ProcessingStatus.InKlaerung);
+
+        var postRespInKlaerung = await _client.PostAsJsonAsync(
+            $"/api/formcases/{formCaseId}/clarifications",
+            new { Message = "Das sollte nicht gehen (InKlaerung)." });
+
+        Assert.Equal(HttpStatusCode.BadRequest, postRespInKlaerung.StatusCode);
     }
 
     [Fact]
@@ -112,7 +135,7 @@ public class ClarificationFlowTests : IClassFixture<CaseFlowWebApplicationFactor
         // IMPORTANT: attach at least one PDF before leaving Neu
         await EnsureAtLeastOnePdfAsync(formCaseId);
 
-        // Arrange: create Sachbearbeiter in SAME department and move case to InKlaerung
+        // Arrange: create Sachbearbeiter in SAME department and move case to InBearbeitung
         var sbEmail = NewShortEmail("sb");
         const string sbPassword = "Test123!Test123!";
         await RegisterAsync(sbEmail, sbPassword, role: "Sachbearbeiter", departmentId: departmentId);
@@ -121,7 +144,6 @@ public class ClarificationFlowTests : IClassFixture<CaseFlowWebApplicationFactor
         SetBearer(sbToken);
 
         await SetStatusAsync(formCaseId, ProcessingStatus.InBearbeitung);
-        await SetStatusAsync(formCaseId, ProcessingStatus.InKlaerung);
 
         // Arrange: create Stammdaten user (no department needed)
         var stammdatenEmail = NewShortEmail("s");
