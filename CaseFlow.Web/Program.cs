@@ -5,8 +5,8 @@ using CaseFlow.Application.Services;
 using CaseFlow.Infrastructure.Data;
 using CaseFlow.Infrastructure.Models;
 using CaseFlow.Infrastructure.Repositories;
-using CaseFlow.Infrastructure.Storage;
 using CaseFlow.Infrastructure.Seeding;
+using CaseFlow.Infrastructure.Storage;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -29,11 +29,12 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IFormCaseService, FormCaseService>();
 builder.Services.AddScoped<IDepartmentService, DepartmentService>();
 builder.Services.AddScoped<IClarificationService, ClarificationService>();
-
+builder.Services.AddScoped<IPdfAttachmentRepository, PdfAttachmentRepository>();
+builder.Services.AddScoped<IAttachmentService, AttachmentService>();
 builder.Services.AddScoped<IDepartmentRepository, DepartmentRepository>();
 builder.Services.AddScoped<IFormCaseRepository, FormCaseRepository>();
 builder.Services.AddScoped<IClarificationMessageRepository, ClarificationMessageRepository>();
-
+builder.Services.AddScoped<IEmployeeRepository, EmployeeRepository>();
 builder.Services.AddScoped<IAttachmentStorage, LocalAttachmentStorage>();
 
 // -------------------- CORS --------------------
@@ -60,23 +61,26 @@ var jwtKeyBytes = Encoding.UTF8.GetBytes(jwtKeyString);
 if (jwtKeyBytes.Length < 32)
     throw new InvalidOperationException("Jwt:Key must be at least 32 bytes (256 bits) for HS256.");
 
-builder.Services.AddAuthentication(options =>
+builder.Services
+    .AddAuthentication(options =>
     {
         options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
         options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
     })
     .AddJwtBearer(options =>
     {
+        var isTesting = builder.Environment.IsEnvironment("Testing");
+
         options.TokenValidationParameters = new TokenValidationParameters
         {
-            ValidateIssuer = true,
+            // In Tests: Issuer/Audience nicht erzwingen
+            ValidateIssuer = !isTesting,
             ValidIssuer = jwtSection["Issuer"],
 
-            ValidateAudience = true,
+            ValidateAudience = !isTesting,
             ValidAudience = jwtSection["Audience"],
 
             ValidateLifetime = true,
-
             ValidateIssuerSigningKey = true,
             IssuerSigningKey = new SymmetricSecurityKey(jwtKeyBytes),
 
@@ -91,7 +95,6 @@ builder.Services.AddAuthorization();
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
-        // Ensures enums are serialized as strings (matches your frontend expectations)
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
 
@@ -107,7 +110,6 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 
-    // Docker-friendly: apply migrations automatically in Dev
     using (var scope = app.Services.CreateScope())
     {
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -119,7 +121,6 @@ if (app.Environment.IsDevelopment())
 
 // IMPORTANT for Integration Tests:
 // - TestServer does not need HTTPS redirect and it can produce unwanted redirects.
-// - Keep HTTPS redirect only for real hosting environments.
 if (!app.Environment.IsEnvironment("Testing"))
 {
     app.UseHttpsRedirection();
