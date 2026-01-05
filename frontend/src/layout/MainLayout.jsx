@@ -23,7 +23,7 @@ export default function MainLayout() {
         <Box sx={{ display: "flex", minHeight: "100vh" }}>
             <CssBaseline />
 
-            {/* AppBar: full width, sits above drawer */}
+            {/* AppBar: full width, above drawer */}
             <AppBar
                 position="fixed"
                 color="primary"
@@ -67,16 +67,13 @@ export default function MainLayout() {
                     width: { md: `calc(100% - ${drawerWidth}px)` },
                     ml: { md: `${drawerWidth}px` },
 
-                    // Center content on wide screens
                     display: "flex",
                     justifyContent: "center",
                 }}
             >
-                {/* Wrapper keeps full width and adds AppBar spacer */}
                 <Box sx={{ width: "100%" }}>
                     <Toolbar />
 
-                    {/* Content wrapper: compact layout */}
                     <Box
                         sx={{
                             width: "100%",

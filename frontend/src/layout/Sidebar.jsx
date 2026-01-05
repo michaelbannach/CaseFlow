@@ -6,29 +6,24 @@ import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
 import Toolbar from "@mui/material/Toolbar";
 import Divider from "@mui/material/Divider";
+import Box from "@mui/material/Box";
 
 import FolderOpenOutlinedIcon from "@mui/icons-material/FolderOpenOutlined";
 import LogoutOutlinedIcon from "@mui/icons-material/LogoutOutlined";
 
 const drawerWidth = 280;
 
-export default function Sidebar({
-                                    mobileOpen,
-                                    onCloseMobile,
-                                    onNavigate,
-                                    currentPath,
-                                }) {
+export default function Sidebar({ mobileOpen, onCloseMobile, onNavigate, currentPath }) {
     function handleLogout() {
         localStorage.removeItem("caseflow_token");
         window.location.href = "/login";
     }
 
     const drawerContent = (
-        <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+        <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
             <Toolbar />
             <Divider />
 
-            {/* Main navigation */}
             <List>
                 <ListItemButton
                     selected={currentPath === "/cases"}
@@ -44,21 +39,17 @@ export default function Sidebar({
                 </ListItemButton>
             </List>
 
-            {/* Push logout to bottom */}
             <Divider sx={{ mt: "auto" }} />
 
             <List>
-                <ListItemButton
-                    onClick={handleLogout}
-                    sx={{ color: "error.main" }}
-                >
+                <ListItemButton onClick={handleLogout} sx={{ color: "error.main" }}>
                     <ListItemIcon sx={{ color: "error.main" }}>
                         <LogoutOutlinedIcon />
                     </ListItemIcon>
                     <ListItemText primary="Logout" />
                 </ListItemButton>
             </List>
-        </div>
+        </Box>
     );
 
     return (
