@@ -14,7 +14,7 @@ services:
   api:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: CaseFlow.Web/Dockerfile
     container_name: caseflow-api
     depends_on:
       - db
