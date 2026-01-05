@@ -21,13 +21,11 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: "Development"
 
-      # Wichtig: Server=db (Containername), nicht localhost
-      ConnectionStrings__DefaultConnection: "Server=db,1433;Database=CaseFlowDb;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;"
+      # IMPORTANT: use service name "db" inside compose network
+      ConnectionStrings__DefaultConnection: "Server=db,1433;Database=caseflowdb;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;"
 
-      # JWT key muss gesetzt sein, sonst startet deine API absichtlich nicht
+      # Your Program.cs reads Jwt:Key (=> Jwt__Key in env)
       Jwt__Key: "${JWT_KEY}"
-      Jwt__Issuer: "caseflow"
-      Jwt__Audience: "caseflow"
     ports:
       - "5180:8080"
     restart: unless-stopped
