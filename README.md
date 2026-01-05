@@ -12,6 +12,7 @@ Der Fokus liegt Layered‑Architektur, Geschäftslogik und nachvollziehbaren Ber
 7. [Motivation & Lernziele](-motivation--lernziele)
 8. [Autor](#autor)
 
+
 ## Über das Projekt
 CaseFlow simuliert einen typischen behördlichen oder unternehmensinternen Prozess zur Bearbeitung von Fällen, bei dem mehrere Rollen mit klar getrennten Verantwortlichkeiten zusammenarbeiten.
 
@@ -22,6 +23,7 @@ Zentrale Aspekte des Systems sind:
 - Nachvollziehbare und testbare Geschäftslogik
 
 Das Projekt wurde als Bewerbungs‑ und Lernprojekt umgesetzt und orientiert sich bewusst an realistischen Anforderungen aus der Praxis.
+
 
 ## Features
 ### Fallverwaltung
@@ -47,18 +49,7 @@ Statusübergänge sind abhängig von Rolle und aktuellem Zustand und werden auss
 - Upload von Dokumenten zu einem Fall
 - Download vorhandener Anhänge
 
-```mermaid
-stateDiagram-v2
-    [*] --> Neu
-
-    Neu --> InBearbeitung : Sachbearbeiter
-    InBearbeitung --> InKlaerung : Sachbearbeiter
-    InBearbeitung --> Erledigt : Sachbearbeiter
-
-    InKlaerung --> Neu : Erfasser (Fallbesitzer)
-
-    Erledigt --> [*]
-  
+ 
 ## Architektur
 
 <p align="center">
@@ -73,6 +64,7 @@ RoomBooking.Domain             → Domain Modelle
 ```
 Die Architektur folgt dem Prinzip: Abhängigkeiten zeigen nach innen.
 Geschäftsregeln befinden sich ausschließlich in den Services(Application-Schicht) und nicht in Controllern oder im Frontend.
+
 
 ## Technologiestack
 ### Backend
@@ -93,6 +85,7 @@ Geschäftsregeln befinden sich ausschließlich in den Services(Application-Schic
 ### Datenbank
 - SQL Server
 
+
 ## Quickstart (Docker Compose)
 ### Projekt klonen
 ```
@@ -110,6 +103,7 @@ docker compose up --build
 cd frontend
 npm run dev
 ```
+
 
 ## Screenshots
 
@@ -139,9 +133,6 @@ Mitarbeiter des Stammdaten-Bereichts sehen Anträge aller Abteilungen
 <img src="docs/screenshots/StammdatenÜbersicht.png" width="350px">
 
 
-
-
-
 ## Motivation
 Ziel dieses Projekts war es, einen praxisnahen Use Case umzusetzen, der typische Anforderungen aus dem Unternehmensalltag abbildet, 
 um beim späteren Einstieg in ein Unternehmen auf vorhandene praktische Kenntnisse aufbauen zu können.
@@ -149,6 +140,7 @@ um beim späteren Einstieg in ein Unternehmen auf vorhandene praktische Kenntnis
 - Abbildung eines realistischen Workflows mit klarer Statuslogik
 - Korrekte Umsetzung von Rollen- und Berechtigungskonzepten
 - Aufbau einer wartbaren und erweiterbaren Backend-Architektur
+
 
 ## Autor
 
