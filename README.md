@@ -47,7 +47,7 @@ Statusübergänge sind abhängig von Rolle und aktuellem Zustand und werden auss
 - Upload von Dokumenten zu einem Fall
 - Download vorhandener Anhänge
 
-```
+```mermaid
 stateDiagram-v2
     [*] --> Neu
 
@@ -58,7 +58,6 @@ stateDiagram-v2
     InKlaerung --> Neu : Erfasser (Fallbesitzer)
 
     Erledigt --> [*]
-```
   
 ## Architektur
 
