@@ -1,7 +1,11 @@
 using System;
 using System.Linq;
+using CaseFlow.Application.Interfaces;
 using CaseFlow.Infrastructure.Data;
+using CaseFlow.Infrastructure.Repositories;
+using CaseFlow.Application.Services;
 using CaseFlow.Infrastructure.Seeding;
+using CaseFlow.Infrastructure.Storage;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -14,18 +18,26 @@ public sealed class CaseFlowWebApplicationFactory : WebApplicationFactory<Progra
 {
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        // Wichtig: Testing Environment (damit Program.cs z.B. HTTPS Redirect deaktivieren kann)
         builder.UseEnvironment("Testing");
+
+        // ✅ CRITICAL: JWT settings as ENV so Program.cs and AuthService use the SAME key/issuer/audience
+        // (HS256 requires >= 32 bytes)
+        Environment.SetEnvironmentVariable("Jwt__Key", "caseflow_test_jwt_key_32_chars_min_123456");
+        Environment.SetEnvironmentVariable("Jwt__Issuer", "CaseFlow");
+        Environment.SetEnvironmentVariable("Jwt__Audience", "CaseFlowClient");
+        Environment.SetEnvironmentVariable("Jwt__ExpiresMinutes", "60");
 
         builder.ConfigureServices(services =>
         {
             // 1) Existing AppDbContext registration entfernen
             var dbContextDescriptor = services.SingleOrDefault(
                 d => d.ServiceType == typeof(DbContextOptions<AppDbContext>));
+
             if (dbContextDescriptor is not null)
                 services.Remove(dbContextDescriptor);
 
-            // 2) Unique DB pro Test-Factory (keine Kollisionen, keine "AspNetRoles exists")
-            //    Wir nehmen die Basis-ConnectionString aus der Config und ersetzen nur den DB-Namen.
+            // 2) Unique SQL DB pro Factory (keine Kollisionsprobleme)
             var sp0 = services.BuildServiceProvider();
             using var scope0 = sp0.CreateScope();
             var cfg = scope0.ServiceProvider.GetRequiredService<IConfiguration>();
@@ -39,13 +51,20 @@ public sealed class CaseFlowWebApplicationFactory : WebApplicationFactory<Progra
             services.AddDbContext<AppDbContext>(options =>
                 options.UseSqlServer(conn));
 
-            // 3) DB erstellen + Migration + Seed
+            // 3) Explizit die Abhängigkeiten registrieren, die deine Services brauchen
+            services.AddScoped<IEmployeeRepository, EmployeeRepository>();
+            services.AddScoped<IClarificationMessageRepository, ClarificationMessageRepository>();
+            services.AddScoped<IAttachmentStorage, LocalAttachmentStorage>();
+            services.AddScoped<IPdfAttachmentRepository, PdfAttachmentRepository>();
+            services.AddScoped<IAttachmentService, AttachmentService>();
+
+            // 4) DB erstellen + Migration + Seed
             var sp = services.BuildServiceProvider();
             using var scope = sp.CreateScope();
 
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-            // Optional, aber robust:
+            // Optional aber sauber: frische DB pro Factory
             db.Database.EnsureDeleted();
 
             db.Database.Migrate();
@@ -55,8 +74,6 @@ public sealed class CaseFlowWebApplicationFactory : WebApplicationFactory<Progra
 
     private static string ReplaceDatabaseName(string connectionString, string newDbName)
     {
-        // Sehr einfache, robuste Ersetzung für typische SQLServer Connection Strings:
-        // ...;Database=Foo;...  oder  ...;Initial Catalog=Foo;...
         var parts = connectionString.Split(';', StringSplitOptions.RemoveEmptyEntries).ToList();
 
         for (var i = 0; i < parts.Count; i++)

@@ -59,6 +59,15 @@ public class AuthFlowTests : IClassFixture<CaseFlowWebApplicationFactory>
         // Act: Call a protected endpoint (adjust if you keep GET anonymous)
         var protectedResp = await _client.GetAsync("/api/formcases");
 
+        if (protectedResp.StatusCode == HttpStatusCode.Unauthorized &&
+            protectedResp.Headers.WwwAuthenticate is not null)
+        {
+            Console.WriteLine("WWW-Authenticate: " +
+                              string.Join(" | ", protectedResp.Headers.WwwAuthenticate.Select(x => x.ToString())));
+        }
+
+        Assert.Equal(HttpStatusCode.OK, protectedResp.StatusCode);
+
         // Assert: should succeed when endpoint is protected & auth pipeline is configured
         Assert.Equal(HttpStatusCode.OK, protectedResp.StatusCode);
     }
