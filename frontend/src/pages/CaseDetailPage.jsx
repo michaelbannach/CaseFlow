@@ -78,24 +78,6 @@ function getEmployeeIdFromToken() {
     return Number.isFinite(n) ? n : null;
 }
 
-function getOwnerEmployeeIdFromCase(caseData) {
-    if (!caseData) return null;
-
-    const raw =
-        caseData.createByEmployeeId ??
-        caseData.createdByEmployeeId ??
-        caseData.createByEmployeeID ??
-        caseData.createdByEmployeeID ??
-        caseData.createdByEmployee?.id ??
-        caseData.createByEmployee?.id ??
-        caseData.createByEmployee?.employeeId ??
-        null;
-
-    if (raw == null) return null;
-    const n = Number(raw);
-    return Number.isFinite(n) ? n : null;
-}
-
 async function deleteFormCase(id) {
     const token = localStorage.getItem(TOKEN_KEY);
 
@@ -170,7 +152,8 @@ export default function CaseDetailPage() {
     // Status as STRING: "Neu" | "InBearbeitung" | "InKlaerung" | "Erledigt"
     const status = caseData?.status;
 
-    const ownerEmployeeId = getOwnerEmployeeIdFromCase(caseData);
+    // ✅ Review fix: one contract, one field (DTO): createdByEmployeeId
+    const ownerEmployeeId = caseData?.createdByEmployeeId ?? null;
 
     const isOwner =
         employeeId != null &&
@@ -193,7 +176,7 @@ export default function CaseDetailPage() {
         setBusy(true);
         setError(null);
         try {
-            await updateCaseStatus(id, newStatus); 
+            await updateCaseStatus(id, newStatus);
             await loadAll();
         } catch (e) {
             setError(e?.message ?? "Statusänderung fehlgeschlagen");

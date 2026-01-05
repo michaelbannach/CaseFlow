@@ -25,6 +25,7 @@ import AddIcon from "@mui/icons-material/Add";
 import { getCases } from "../api/formCaseApi";
 import { getAuthContext } from "../api/client";
 import StatusChip from "../components/StatusChip";
+import { getDepartments } from "../api/departmentApi";
 
 function safeText(v) {
     return (v ?? "").toString().trim();
@@ -61,13 +62,19 @@ export default function CaseListPage() {
     const [loading, setLoading] = React.useState(true);
     const [error, setError] = React.useState(null);
     const [query, setQuery] = React.useState("");
+    const [departments, setDepartments] = React.useState([]);
 
     const load = React.useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
-            const data = await getCases();
-            setRows(Array.isArray(data) ? data : []);
+            const [cases, deps] = await Promise.all([
+                getCases(),
+                getDepartments(),
+                ]);
+            
+                setRows(Array.isArray(cases) ? cases : []);
+                setDepartments(Array.isArray(deps) ? deps : []);
         } catch (e) {
             setError(e?.message || "Fehler beim Laden der Fälle.");
         } finally {
@@ -82,6 +89,14 @@ export default function CaseListPage() {
     const filtered = React.useMemo(() => {
         return rows.filter((c) => matchesQuery(c, query));
     }, [rows, query]);
+
+    const departmentById = React.useMemo(() => {
+        const map = {};
+        departments.forEach((d) => {
+            map[d.id] = d.name;
+            });
+            return map;
+        }, [departments]);
 
     return (
         <Box>
@@ -178,7 +193,9 @@ export default function CaseListPage() {
                                         <TableCell>
                                             <StatusChip status={c.status} />
                                         </TableCell>
-                                        <TableCell>{safeText(c.departmentId) || "-"}</TableCell>
+                                        <TableCell>
+                                            {departmentById[c.departmentId] ?? "-"}
+                                        </TableCell>
                                     </TableRow>
                                 ))}
 
