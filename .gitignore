@@ -47,3 +47,6 @@ appsettings.Development.json
 
 # Storage / Upload
 Storage/
+
+
+.idea/

@@ -5,8 +5,8 @@ using CaseFlow.Application.Services;
 using CaseFlow.Infrastructure.Data;
 using CaseFlow.Infrastructure.Models;
 using CaseFlow.Infrastructure.Repositories;
-using CaseFlow.Infrastructure.Seeding;
 using CaseFlow.Infrastructure.Storage;
+using CaseFlow.Infrastructure.Seeding;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -14,7 +14,7 @@ using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// -------------------- Data / Identity --------------------
+// -------------------- DB --------------------
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -22,6 +22,31 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>()
     .AddEntityFrameworkStores<AppDbContext>()
     .AddDefaultTokenProviders();
+
+// -------------------- Services --------------------
+
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IFormCaseService, FormCaseService>();
+builder.Services.AddScoped<IDepartmentService, DepartmentService>();
+builder.Services.AddScoped<IClarificationService, ClarificationService>();
+
+builder.Services.AddScoped<IDepartmentRepository, DepartmentRepository>();
+builder.Services.AddScoped<IFormCaseRepository, FormCaseRepository>();
+builder.Services.AddScoped<IClarificationMessageRepository, ClarificationMessageRepository>();
+
+builder.Services.AddScoped<IAttachmentStorage, LocalAttachmentStorage>();
+
+// -------------------- CORS --------------------
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("Frontend", policy =>
+    {
+        policy.WithOrigins("http://localhost:5173")
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
 
 // -------------------- Auth (JWT) --------------------
 
@@ -32,6 +57,8 @@ if (string.IsNullOrWhiteSpace(jwtKeyString))
     throw new InvalidOperationException("Jwt:Key is missing. Check appsettings.json / appsettings.Development.json.");
 
 var jwtKeyBytes = Encoding.UTF8.GetBytes(jwtKeyString);
+if (jwtKeyBytes.Length < 32)
+    throw new InvalidOperationException("Jwt:Key must be at least 32 bytes (256 bits) for HS256.");
 
 builder.Services.AddAuthentication(options =>
     {
@@ -62,62 +89,25 @@ builder.Services.AddAuthorization();
 // -------------------- Controllers / JSON --------------------
 
 builder.Services.AddControllers()
-    .AddJsonOptions(o =>
-        o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
-
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("Frontend", policy =>
+    .AddJsonOptions(options =>
     {
-        policy
-            .WithOrigins("http://localhost:5173")   // Vite default
-            .AllowAnyHeader()
-            .AllowAnyMethod();
+        // Ensures enums are serialized as strings (matches your frontend expectations)
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
-});
-
-// -------------------- Swagger --------------------
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-
-// -------------------- DI (Repositories / Services) --------------------
-
-builder.Services.AddScoped<IFormCaseRepository, FormCaseRepository>();
-builder.Services.AddScoped<IFormCaseService, FormCaseService>();
-
-builder.Services.AddScoped<IPdfAttachmentRepository, PdfAttachmentRepository>();
-builder.Services.AddScoped<IAttachmentStorage, LocalAttachmentStorage>();
-builder.Services.AddScoped<IAttachmentService, AttachmentService>();
-
-builder.Services.AddScoped<IEmployeeRepository, EmployeeRepository>();
-
-builder.Services.AddScoped<IAuthService, AuthService>();
-
-builder.Services.AddScoped<IClarificationMessageRepository, ClarificationMessageRepository>();
-builder.Services.AddScoped<IClarificationService, ClarificationService>();
-
-builder.Services.AddScoped<IDepartmentRepository, DepartmentRepository>();
-builder.Services.AddScoped<IDepartmentService, DepartmentService>();
-
-// -------------------- Build --------------------
 
 var app = builder.Build();
 
 // -------------------- Pipeline --------------------
 
-// Production hardening
-if (!app.Environment.IsDevelopment())
-{
-    app.UseHsts();
-}
-
-// Dev-only tooling + seeding
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 
+    // Docker-friendly: apply migrations automatically in Dev
     using (var scope = app.Services.CreateScope())
     {
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -141,9 +131,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-
-// Optional: only useful if you actually serve static assets
-app.MapStaticAssets();
 
 app.Run();
 
