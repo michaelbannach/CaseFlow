@@ -46,7 +46,20 @@ Statusübergänge sind abhängig von Rolle und aktuellem Zustand und werden auss
 ### Dokumente / PDF-Anhänge
 - Upload von Dokumenten zu einem Fall
 - Download vorhandener Anhänge
-- 
+
+```
+stateDiagram-v2
+    [*] --> Neu
+
+    Neu --> InBearbeitung : Sachbearbeiter
+    InBearbeitung --> InKlaerung : Sachbearbeiter
+    InBearbeitung --> Erledigt : Sachbearbeiter
+
+    InKlaerung --> Neu : Erfasser (Fallbesitzer)
+
+    Erledigt --> [*]
+```
+  
 ## Architektur
 
 <p align="center">
