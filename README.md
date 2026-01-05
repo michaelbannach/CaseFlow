@@ -48,6 +48,11 @@ Statusübergänge sind abhängig von Rolle und aktuellem Zustand und werden auss
 - Download vorhandener Anhänge
 - 
 ## Architektur
+
+<p align="center">
+<img src="docs/screenshots/Architekturdiagramm.png" width="350px">
+</p>
+
 ```
 RoomBooking.Web                → Controller, Endpoints, Program/DI, DTOs, Mapping
 RoomBooking.Application        → Services, Interfaces
@@ -95,6 +100,28 @@ npm run dev
 ```
 
 ## Screenshots
+
+<img src="docs/screenshots/Erfasser_Register.png" width="350px">
+
+<img src="docs/screenshots/Erfasser_Login.png" width="350px">
+
+<img src="docs/screenshots/NeuerFall_MitFehler.png" width="350px">
+
+<img src="docs/screenshots/NeuerAntrag.png" width="350px">
+
+<img src="docs/screenshots/Sachbearbeiter_Leistung_Register.png" width="350px">
+
+<img src="docs/screenshots/Übersicht.png" width="350px">
+
+<img src="docs/screenshots/Bearbeitung_Sachbearbeiter_InKlaerung.png" width="350px">
+
+<img src="docs/screenshots/Bearbeitung_Erfasser_InKlaerung.png" width="350px">
+
+<img src="docs/screenshots/StammdatenÜbersicht.png" width="350px">
+
+
+
+
 
 ## Motivation
 Ziel dieses Projekts war es, einen praxisnahen Use Case umzusetzen, der typische Anforderungen aus dem Unternehmensalltag abbildet, 
