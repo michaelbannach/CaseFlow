@@ -122,8 +122,8 @@ Erfasser kann für alle Abteilungen Anträge erstellen
 Sachbearbeiter sieht nur Anträge seiner Abteilung
 <img src="docs/screenshots/Übersicht.png" width="350px">
 
-Bearbeitung durch Sachbearbeiter
-Bei Unklarheiten kann das Formular an den Erfasser zurückgesendet werden mit erzwungener Notiz
+Bearbeitung durch Sachbearbeiter<br>
+Bei Unklarheiten kann das Formular an den Erfasser zurückgesendet werden mit erzwungener Notiz<br>
 <img src="docs/screenshots/Bearbeitung_Sachbearbeiter_InKlaerung.png" width="350px">
 
 Dieses Formular erscheint mit Status `In Klärung` bei dem Erfasser
