@@ -21,8 +21,6 @@ public sealed class CaseFlowWebApplicationFactory : WebApplicationFactory<Progra
         // Wichtig: Testing Environment (damit Program.cs z.B. HTTPS Redirect deaktivieren kann)
         builder.UseEnvironment("Testing");
 
-        //  CRITICAL: JWT settings as ENV so Program.cs and AuthService use the SAME key/issuer/audience
-        // (HS256 requires >= 32 bytes)
         Environment.SetEnvironmentVariable("Jwt__Key", "caseflow_test_jwt_key_32_chars_min_123456");
         Environment.SetEnvironmentVariable("Jwt__Issuer", "CaseFlow");
         Environment.SetEnvironmentVariable("Jwt__Audience", "CaseFlowClient");
@@ -51,7 +49,7 @@ public sealed class CaseFlowWebApplicationFactory : WebApplicationFactory<Progra
             services.AddDbContext<AppDbContext>(options =>
                 options.UseSqlServer(conn));
 
-            // 3) Explizit die Abhängigkeiten registrieren, die deine Services brauchen
+           
             services.AddScoped<IEmployeeRepository, EmployeeRepository>();
             services.AddScoped<IClarificationMessageRepository, ClarificationMessageRepository>();
             services.AddScoped<IAttachmentStorage, LocalAttachmentStorage>();
@@ -64,7 +62,7 @@ public sealed class CaseFlowWebApplicationFactory : WebApplicationFactory<Progra
 
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-            // Optional aber sauber: frische DB pro Factory
+           
             db.Database.EnsureDeleted();
 
             db.Database.Migrate();

@@ -90,7 +90,7 @@ function validate(state, pdfFile) {
     // PDF Pflicht
     if (!pdfFile) errors.pdfFile = "PDF ist erforderlich";
 
-    // Typ-spezifisch (wie bei dir)
+    // Typ-spezifisch 
     const ft = asInt(state.formType);
     if (ft === 0) {
         if (!state.serviceDescription.trim()) errors.serviceDescription = "Pflichtfeld";

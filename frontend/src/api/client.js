@@ -1,12 +1,8 @@
-// src/api/client.js
-
 export const TOKEN_KEY = "caseflow_token";
 const API_BASE_URL =
     import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5180";
 
-// -------------------------
-// Token helpers
-// -------------------------
+
 
 export function setToken(token) {
     if (!token) return;
@@ -21,10 +17,7 @@ export function getToken() {
     return localStorage.getItem(TOKEN_KEY);
 }
 
-// -------------------------
-// Low-level request helper
-// Supports JSON + FormData (multipart)
-// -------------------------
+
 
 async function request(method, url, body) {
     const token = getToken();
@@ -36,9 +29,7 @@ async function request(method, url, body) {
 
     const isFormData = body instanceof FormData;
 
-    // IMPORTANT:
-    // - For JSON requests: set Content-Type and stringify
-    // - For FormData: DO NOT set Content-Type (browser sets boundary)
+
     if (!isFormData && body !== undefined) {
         headers["Content-Type"] = "application/json";
     }
@@ -54,9 +45,9 @@ async function request(method, url, body) {
                     : JSON.stringify(body),
     });
 
-    // Handle non-2xx
+
     if (!res.ok) {
-        // Try to extract a useful message from JSON error or plain text
+        
         const contentType = res.headers.get("content-type") ?? "";
         let message = `Request failed (${res.status} ${res.statusText})`;
 
@@ -116,10 +107,10 @@ export function getAuthContext() {
         const payloadJson = atob(payloadB64.replace(/-/g, "+").replace(/_/g, "/"));
         const payload = JSON.parse(payloadJson);
 
-        // employeeId ist bei dir im Token vorhanden (du siehst es schon im Storage-Text)
+       
         const employeeId = Number(payload.employeeId);
 
-        // role claim kann je nach Backend so oder so heißen:
+        
         const role =
             payload.role ||
             payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"];
@@ -134,9 +125,7 @@ export function getAuthContext() {
     }
 }
 
-// -------------------------
-// Convenience wrappers
-// -------------------------
+
 
 export const apiGet = (url) => request("GET", url);
 export const apiPost = (url, body) => request("POST", url, body);

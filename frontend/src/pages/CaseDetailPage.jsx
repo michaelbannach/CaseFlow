@@ -98,7 +98,7 @@ async function deleteFormCase(id) {
                 const text = await res.text();
                 if (text) message = text;
             } catch {
-                /* ignore */
+                
             }
         }
         throw new Error(message);
@@ -152,7 +152,7 @@ export default function CaseDetailPage() {
     // Status as STRING: "Neu" | "InBearbeitung" | "InKlaerung" | "Erledigt"
     const status = caseData?.status;
 
-    // ✅ Review fix: one contract, one field (DTO): createdByEmployeeId
+    
     const ownerEmployeeId = caseData?.createdByEmployeeId ?? null;
 
     const isOwner =

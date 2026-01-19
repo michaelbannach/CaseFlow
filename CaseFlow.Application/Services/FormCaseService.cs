@@ -24,10 +24,7 @@ public class FormCaseService : IFormCaseService
         _logger = logger;
     }
 
-    // ----------------------------
-    // READ (admin/dev use)
-    // ----------------------------
-
+   
     public async Task<List<FormCase>> GetAllFormCasesAsync()
     {
         return await _formCaseRepository.GetAllAsync();
@@ -43,10 +40,7 @@ public class FormCaseService : IFormCaseService
 
         return await _formCaseRepository.GetByIdAsync(formCaseId);
     }
-
-    // ----------------------------
-    // VISIBILITY (secure reads)
-    // ----------------------------
+    
 
     public async Task<List<FormCase>> GetAllVisibleFormCasesAsync(int actingEmployeeId)
     {
@@ -95,7 +89,6 @@ public class FormCaseService : IFormCaseService
         return null;
     }
     
-    // CREATE
     
     public async Task<(bool added, string? error)> CreateFormCaseAsync(int actingEmployeeId, FormCase formCase)
     {
@@ -148,8 +141,7 @@ public class FormCaseService : IFormCaseService
         return (true, null);
     }
     
-    // STATUS / WORKFLOW
-    
+   
     public async Task<(bool updated, string? error)> UpdateFormCaseStatusAsync(
         int actingEmployeeId,
         int formCaseId,
@@ -244,9 +236,7 @@ public class FormCaseService : IFormCaseService
     }
 
     
-    // DELETE
-    
-
+   
     public async Task<(bool deleted, string? error)> DeleteFormCaseAsync(int actingEmployeeId, int formCaseId)
     {
         if (actingEmployeeId <= 0)
@@ -276,13 +266,7 @@ public class FormCaseService : IFormCaseService
             if (existing.Status != ProcessingStatus.InKlaerung)
                 return (false, "Not allowed");
         }
-        //  Sachbearbeiter: wie bisher erlaubt (einfach gehalten)
-        else if (actor.Role == UserRole.Sachbearbeiter)
-        {
-            // optional (wenn du willst): nur eigene Abteilung
-            // if (existing.DepartmentId != actor.DepartmentId)
-            //     return (false, "Not allowed");
-        }
+       
         else
         {
             return (false, "Not allowed");

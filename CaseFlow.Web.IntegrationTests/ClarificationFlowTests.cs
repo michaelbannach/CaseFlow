@@ -36,7 +36,7 @@ public class ClarificationFlowTests : IClassFixture<CaseFlowWebApplicationFactor
         var departmentId = await GetAnyDepartmentIdAsync();
         var formCaseId = await CreateKostenantragAsync(departmentId);
 
-        // IMPORTANT: attach at least one PDF before leaving Neu
+        
         await EnsureAtLeastOnePdfAsync(formCaseId);
 
         // Arrange: create Sachbearbeiter in SAME department as the case
@@ -55,7 +55,7 @@ public class ClarificationFlowTests : IClassFixture<CaseFlowWebApplicationFactor
         var clarificationId = await CreateClarificationAsync(formCaseId, message);
         Assert.True(clarificationId > 0);
 
-        // Optional but realistic: after adding clarification, set case to InKlaerung
+        
         await SetStatusAsync(formCaseId, ProcessingStatus.InKlaerung);
 
         // Act: GET clarifications
@@ -268,7 +268,7 @@ public class ClarificationFlowTests : IClassFixture<CaseFlowWebApplicationFactor
 
     private async Task EnsureAtLeastOnePdfAsync(int formCaseId)
     {
-        // Minimal PDF content; enough to satisfy "at least one attachment exists"
+        
         var pdfBytes = Encoding.UTF8.GetBytes("%PDF-1.4\n%âãÏÓ\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF");
 
         using var content = new MultipartFormDataContent();
@@ -276,7 +276,6 @@ public class ClarificationFlowTests : IClassFixture<CaseFlowWebApplicationFactor
         var fileContent = new ByteArrayContent(pdfBytes);
         fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/pdf");
 
-        // Name "file" must match your AttachmentsController parameter name.
         content.Add(fileContent, "file", "test.pdf");
 
         var resp = await _client.PostAsync($"/api/formcases/{formCaseId}/attachments", content);

@@ -187,10 +187,7 @@ public class AttachmentFlowTests : IClassFixture<CaseFlowWebApplicationFactory>
         var req = new HttpRequestMessage(HttpMethod.Options, path);
         var resp = await new HttpClient { BaseAddress = new Uri("http://localhost") }.SendAsync(req);
 
-        // If this fails due to BaseAddress mismatch, fall back to not using a separate client.
-        // We'll do the real check using a safe GET attempt:
-        // - If GET works but POST returns 405 => POST truly not mapped.
-        // - If GET fails too => route might be different.
+  
         if (resp.StatusCode == HttpStatusCode.MethodNotAllowed || resp.StatusCode == HttpStatusCode.OK || resp.StatusCode == HttpStatusCode.NoContent)
         {
             if (resp.Headers.TryGetValues("Allow", out var values))
@@ -201,11 +198,7 @@ public class AttachmentFlowTests : IClassFixture<CaseFlowWebApplicationFactory>
                 return;
             }
         }
-
-        // Fallback: simple GET probe
-        // (If GET is 200/401/403, route exists. If 404, route likely different.)
-        // This is still a useful signal.
-        // NOTE: We can’t reuse _client here because this is static; keep message actionable.
+        
         throw new Exception($"Could not reliably determine allowed methods for '{path}'. " +
                             $"OPTIONS returned {(int)resp.StatusCode} {resp.StatusCode}. " +
                             $"If POST /api/formcases returns 405, your Create endpoint route is different in the current codebase.");

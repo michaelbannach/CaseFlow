@@ -1,4 +1,3 @@
-// src/pages/RegisterPage.jsx
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { register } from "../api/authApi";
@@ -23,7 +22,7 @@ export default function RegisterPage() {
     const [password, setPassword] = useState("");
 
     const [role, setRole] = useState("Erfasser");
-    const [departmentId, setDepartmentId] = useState(""); // string for Select, convert later
+    const [departmentId, setDepartmentId] = useState("");
 
     const [departments, setDepartments] = useState([]);
     const [error, setError] = useState("");
@@ -56,7 +55,7 @@ export default function RegisterPage() {
         setIsSubmitting(true);
 
         try {
-            // DepartmentId ist im Backend int?; leeres Select => null
+           
             const dept = departmentId === "" ? null : Number(departmentId);
 
             await register({

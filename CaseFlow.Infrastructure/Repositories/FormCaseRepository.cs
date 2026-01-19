@@ -37,7 +37,7 @@ public class FormCaseRepository : IFormCaseRepository
 
     public async Task<bool> UpdateAsync(FormCase formCase)
     {
-        // Update ist ok, solange du im Service vorher das "existing" aus der DB holst (machst du)
+        
         _db.FormCases.Update(formCase);
         return await _db.SaveChangesAsync() > 0;
     }

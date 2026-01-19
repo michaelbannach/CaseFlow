@@ -1,4 +1,3 @@
-// src/api/formCaseApi.jsx
 import { apiPost, apiGet, apiPatch } from "./client";
 
 // Create
