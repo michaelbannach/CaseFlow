@@ -111,8 +111,8 @@ npm run dev
 
 <img src="docs/screenshots/Erfasser_Login.png" width="350px">
 
-Der Erfasser erstellt einen neuen Antrag
-Erfasser kann für alle Abteilungen Anträge erstellen
+Der Erfasser erstellt einen neuen Antrag. <br>
+Erfasser kann für alle Abteilungen Anträge erstellen.<br>
 <img src="docs/screenshots/NeuerFall_MitFehler.png" width="350px">
 
 <img src="docs/screenshots/NeuerAntrag.png" width="350px">
